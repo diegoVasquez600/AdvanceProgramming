@@ -124,7 +124,3 @@ AdvanceProgramming/
 |-- README.md
 `-- .gitignore
 ```
-
-## 9. Recomendación para evaluación académica
-
-Para reproducibilidad total, se recomienda ejecutar siempre con el CSV local completo y luego guardar el notebook con todas las celdas ejecutadas.
