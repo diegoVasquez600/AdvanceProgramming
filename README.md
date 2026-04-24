@@ -1,10 +1,11 @@
-# Análisis Exploratorio de Datos - Colombia EVA
+# Notebooks de Programación Avanzada
 
-Este proyecto contiene un análisis exploratorio del dataset **Evaluaciones Agropecuarias Municipales (EVA)** de Colombia.
+Este repositorio contiene dos notebooks desarrollados para la asignatura **Programación Avanzada**. El primero corresponde a un análisis exploratorio del dataset **Evaluaciones Agropecuarias Municipales (EVA)** de Colombia y el segundo resuelve el **Taller 1 de Álgebra Lineal para Machine Learning**.
 
-El notebook principal es:
+## Contenido del repositorio
 
-- `Exploratory_Data_Analysis_Colombia_EVA.ipynb`
+- `Exploratory_Data_Analysis_Colombia_EVA.ipynb`: análisis exploratorio, limpieza, estandarización y preparación de datos del dataset EVA para modelado.
+- `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`: desarrollo del Taller 1 con ejercicios de vectores, transformaciones lineales y PCA.
 
 El proyecto está configurado para:
 
@@ -45,13 +46,29 @@ Ejecuta este comando para validar dependencias:
 python -c "import pandas, numpy, matplotlib, seaborn, scipy, sodapy, dotenv; print('OK: dependencias instaladas')"
 ```
 
-## 4. Ejecución del notebook
+## 4. Ejecución de los notebooks
 
 1. Activa el entorno virtual (`.venv`).
 2. Abre el proyecto en VS Code.
-3. Abre `Exploratory_Data_Analysis_Colombia_EVA.ipynb`.
+3. Abre el notebook que desees ejecutar.
 4. Selecciona el kernel de `.venv`.
 5. Ejecuta todas las celdas en orden.
+
+### Notebook 1: EDA del dataset EVA
+
+Archivo:
+
+- `Exploratory_Data_Analysis_Colombia_EVA.ipynb`
+
+Este notebook usa como fuente principal el CSV completo ubicado en `data/Evaluaciones_Agropecuarias_Municipales_EVA.csv` y, si no está disponible, usa la API de Datos Abiertos como respaldo.
+
+### Notebook 2: Taller 1 de Programación Avanzada
+
+Archivo:
+
+- `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`
+
+Este notebook no depende de la API de Datos Abiertos. Contiene ejercicios académicos de álgebra lineal aplicados a machine learning, incluyendo similitud coseno, transformaciones lineales sobre imágenes y análisis PCA.
 
 ## 5. Fuente de datos
 
@@ -120,7 +137,12 @@ AdvanceProgramming/
 |-- data/
 |   `-- Evaluaciones_Agropecuarias_Municipales_EVA.csv
 |-- Exploratory_Data_Analysis_Colombia_EVA.ipynb
+|-- Taller1_ProgramacionAvanzada_Diego_Rios.ipynb
 |-- requirements.txt
 |-- README.md
 `-- .gitignore
 ```
+
+## 9. Recomendación de uso
+
+Si el objetivo es revisar el trabajo de análisis de datos, comienza por `Exploratory_Data_Analysis_Colombia_EVA.ipynb`. Si el objetivo es revisar el desarrollo del taller académico de álgebra lineal, abre `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`.
