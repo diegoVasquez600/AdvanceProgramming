@@ -1,0 +1,23 @@
+# Colombia EVA - Exploratory Data Analysis
+# Python Dependencies
+
+# Data Processing & Analysis
+pandas==2.0.3
+numpy==1.24.3
+scipy==1.11.1
+
+# Data Visualization
+matplotlib==3.7.2
+seaborn==0.12.2
+
+# Jupyter & Notebook
+jupyter==1.0.0
+jupyterlab==4.0.4
+ipython==8.14.0
+
+# API & Data Fetching
+sodapy==2.1.0
+requests==2.31.0
+
+# Additional Utilities
+python-dotenv==1.0.0
