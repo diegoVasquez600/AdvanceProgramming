@@ -1,0 +1,3 @@
+regla,variables,decision
+Critico/Alto por lookup,"cultivo, desagregaci_n_regional_y, nombre_cientifico, subgrupo_de_cultivo",Remover
+Medio con justificacion semantica,"estado_fisico_produccion, grupo_de_cultivo",Evaluar/remover conservadoramente

@@ -1,0 +1,25 @@
+{
+  "file": "data\\Evaluaciones_Agropecuarias_Municipales_EVA.csv",
+  "sha256": "2aa6726284b55a39651c81174b23dac715b787de64e665db01997f4a66381779",
+  "rows": 206068,
+  "cols": 17,
+  "columns": [
+    "CÓD. \r\nDEP.",
+    "DEPARTAMENTO",
+    "CÓD. MUN.",
+    "MUNICIPIO",
+    "GRUPO \r\nDE CULTIVO",
+    "SUBGRUPO \r\nDE CULTIVO",
+    "CULTIVO",
+    "DESAGREGACIÓN REGIONAL Y/O SISTEMA PRODUCTIVO",
+    "AÑO",
+    "PERIODO",
+    "Área Sembrada\r\n(ha)",
+    "Área Cosechada\r\n(ha)",
+    "Producción\r\n(t)",
+    "Rendimiento\r\n(t/ha)",
+    "ESTADO FISICO PRODUCCION",
+    "NOMBRE \r\nCIENTIFICO",
+    "CICLO DE CULTIVO"
+  ]
+}

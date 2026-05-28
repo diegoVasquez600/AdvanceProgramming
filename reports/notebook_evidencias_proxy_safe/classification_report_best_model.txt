@@ -1,0 +1,9 @@
+              precision    recall  f1-score   support
+
+       ANUAL       0.87      0.88      0.87      2172
+  PERMANENTE       0.98      0.98      0.98     12397
+ TRANSITORIO       1.00      1.00      1.00     16342
+
+    accuracy                           0.98     30911
+   macro avg       0.95      0.95      0.95     30911
+weighted avg       0.98      0.98      0.98     30911

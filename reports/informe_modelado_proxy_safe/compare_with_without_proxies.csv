@@ -1,0 +1,3 @@
+escenario,n_features,accuracy,f1_macro
+Con variables completas,16,0.9993448828068132,0.9981978411433462
+Sin variables proxy fuertes detectadas,12,0.9996117824040375,0.9989187806835118
