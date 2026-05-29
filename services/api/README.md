@@ -57,3 +57,9 @@ From repository root:
 ```bash
 docker compose up -d --build
 ```
+
+Automated validation flow (recommended for demo rehearsal):
+
+```bash
+bash ./mlops/scripts/deploy_and_validate.sh
+```

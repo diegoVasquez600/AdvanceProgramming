@@ -6,9 +6,9 @@
     "f1_macro": 0.9205676737036245
   },
   "logistic_regression": {
-    "accuracy": 0.9483333333333334,
-    "precision_macro": 0.857476399616336,
-    "recall_macro": 0.945652753345061,
-    "f1_macro": 0.8849523547015278
+    "accuracy": 0.9479166666666666,
+    "precision_macro": 0.8567819372167199,
+    "recall_macro": 0.9453062529985607,
+    "f1_macro": 0.8842190219854871
   }
 }

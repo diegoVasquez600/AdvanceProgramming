@@ -5,15 +5,33 @@
 1. Copiar `.env.example` a `.env`.
 2. Ajustar credenciales para entorno de demo/produccion.
 
+```bash
+cp .env.example .env
+```
+
 ## 2. Arranque
 
-```powershell
+```bash
 docker compose up -d --build
+```
+
+## 2.1 Despliegue automatico (recomendado)
+
+Script unico para levantar stack, esperar servicios, ejecutar smoke test y validar flujo de demo (pipeline + governance + export CSV):
+
+```bash
+bash ./mlops/scripts/deploy_and_validate.sh
+```
+
+Variables opcionales:
+
+```bash
+BASE_URL=http://127.0.0.1:8000 FRONTEND_URL=http://127.0.0.1:3000 MAX_WAIT_SECONDS=240 bash ./mlops/scripts/deploy_and_validate.sh
 ```
 
 ## 3. Estado esperado
 
-```powershell
+```bash
 docker compose ps
 ```
 
@@ -28,25 +46,25 @@ Esperado:
 
 ## 4. Smoke test API
 
-Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
-```
-
-Linux/macOS:
+Linux/macOS/Git Bash (recomendado):
 
 ```bash
 bash ./mlops/scripts/smoke_api.sh
 ```
 
-## 5. Reentrenar modelos
+Windows PowerShell (opcional):
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
+```
+
+## 5. Reentrenar modelos
+
+```bash
 docker compose run --rm trainer
 
 # Recargar artefactos en API despues del entrenamiento
-Invoke-WebRequest -UseBasicParsing -Method POST http://localhost:8000/api/v1/pipeline/reload-artifacts | Select-Object -ExpandProperty Content
+curl -sS -X POST http://localhost:8000/api/v1/pipeline/reload-artifacts
 ```
 
 ## 6. URLs de demo
@@ -62,27 +80,30 @@ Invoke-WebRequest -UseBasicParsing -Method POST http://localhost:8000/api/v1/pip
 
 ## 7. Verificacion de pipeline desde API
 
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/pipeline/status | Select-Object -ExpandProperty Content
+```bash
+curl -sS http://localhost:8000/api/v1/pipeline/status
 ```
 
 ## 8. Verificacion de governance (registry + feedback)
 
 Consultar registro de modelos cargados:
 
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/models/registry | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing "http://localhost:8000/api/v1/models/registry?limit=20&offset=0" | Select-Object -ExpandProperty Content
+```bash
+curl -sS http://localhost:8000/api/v1/models/registry
+curl -sS "http://localhost:8000/api/v1/models/registry?limit=20&offset=0"
 ```
 
 Registrar feedback de una prediccion existente (ejemplo con `prediction_id=1`):
 
-```powershell
-$fb = @{ true_label = 'maiz'; source = 'manual'; notes = 'etiqueta validada en clase' } | ConvertTo-Json
-Invoke-WebRequest -UseBasicParsing -Method POST -ContentType 'application/json' -Body $fb http://localhost:8000/api/v1/predictions/1/feedback | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions/feedback | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions/feedback/metrics | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions/feedback/export.csv | Select-Object -ExpandProperty StatusCode
+```bash
+curl -sS -X POST \
+	-H "Content-Type: application/json" \
+	-d '{"true_label":"maiz","source":"manual","notes":"etiqueta validada en clase"}' \
+	http://localhost:8000/api/v1/predictions/1/feedback
+
+curl -sS http://localhost:8000/api/v1/predictions/feedback
+curl -sS http://localhost:8000/api/v1/predictions/feedback/metrics
+curl -sS -I http://localhost:8000/api/v1/predictions/feedback/export.csv | head -n 1
 ```
 
 ## 9. Demo guiada en 3 minutos (clase)
@@ -97,11 +118,9 @@ Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions/feed
 
 Validar que los assets de diagramas respondan `200`:
 
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/db-schema.svg | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/api-class-diagram.svg | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/db-governance-schema.svg | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/api-class-governance-diagram.svg | Select-Object -ExpandProperty StatusCode
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8000/static-docs/diagrams/db-governance-schema.svg
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8000/static-docs/diagrams/api-class-governance-diagram.svg
 ```
 
 En navegador abrir `http://localhost:8000/redoc` y confirmar que se visualizan:
@@ -117,18 +136,18 @@ Script versionado de esquema governance:
 
 Uso manual opcional (si deseas aplicar fuera del startup de API):
 
-```powershell
-docker compose exec -T db psql -U mluser -d mlplatform -f /dev/stdin < .\mlops\migrations\001_governance_schema.sql
+```bash
+docker compose exec -T db psql -U mluser -d mlplatform -f /dev/stdin < ./mlops/migrations/001_governance_schema.sql
 ```
 
 ## 12. Apagado
 
-```powershell
+```bash
 docker compose down
 ```
 
 Reset completo (incluye volumenes):
 
-```powershell
+```bash
 docker compose down -v
 ```

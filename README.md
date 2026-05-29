@@ -176,18 +176,24 @@ Estado estable validado en clase/local (29-05-2026):
 
 Configurar variables de entorno antes de levantar:
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 ```
 
 Luego ajustar credenciales/parametros en `.env` si se requiere.
 
-### 10.2 Arranque exacto (PowerShell)
+### 10.2 Arranque exacto (Bash recomendado)
 
 Desde la raiz del proyecto:
 
-```powershell
+```bash
 docker compose up -d --build
+```
+
+Opcion recomendada para clase (despliegue + validacion automatica end-to-end):
+
+```bash
+bash ./mlops/scripts/deploy_and_validate.sh
 ```
 
 Nota importante:
@@ -197,7 +203,7 @@ Nota importante:
 
 ### 10.3 Verificacion de estado de contenedores
 
-```powershell
+```bash
 docker compose ps
 ```
 
@@ -212,14 +218,14 @@ Estado esperado:
 
 ### 10.4 Pruebas de salud HTTP
 
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/health | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/models | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/pipeline/status | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:3000 | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:5000 | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/docs | Select-Object -ExpandProperty StatusCode
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/redoc | Select-Object -ExpandProperty StatusCode
+```bash
+curl -sS http://localhost:8000/api/v1/health
+curl -sS http://localhost:8000/api/v1/models
+curl -sS http://localhost:8000/api/v1/pipeline/status
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:5000
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8000/docs
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8000/redoc
 ```
 
 Resultado esperado minimo:
@@ -248,27 +254,12 @@ Migracion SQL versionada disponible en `mlops/migrations/001_governance_schema.s
 
 ### 10.5 Prueba E2E de prediccion + persistencia
 
-```powershell
-$payload = @{
-	model_name = 'random_forest'
-	features = @{
-		c_d_dep = 5
-		departamento = 'Antioquia'
-		c_d_mun = 1
-		municipio = 'Medellin'
-		grupo_de_cultivo = 'Cereales'
-		a_o = 2023
-		periodo = 'A'
-		rea_sembrada_ha = 10.5
-		rea_cosechada_ha = 10.1
-		producci_n_t = 43.0
-		rendimiento_t_ha = 4.2
-	}
-} | ConvertTo-Json -Depth 6
+```bash
+payload='{"model_name":"random_forest","features":{"c_d_dep":5,"departamento":"Antioquia","c_d_mun":1,"municipio":"Medellin","grupo_de_cultivo":"Cereales","a_o":2023,"periodo":"A","rea_sembrada_ha":10.5,"rea_cosechada_ha":10.1,"producci_n_t":43.0,"rendimiento_t_ha":4.2}}'
 
-Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/api/v1/predict -ContentType 'application/json' -Body $payload | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/api/v1/pipeline/reload-artifacts | Select-Object -ExpandProperty Content
+curl -sS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost:8000/api/v1/predict
+curl -sS http://localhost:8000/api/v1/predictions
+curl -sS -X POST http://localhost:8000/api/v1/pipeline/reload-artifacts
 ```
 
 Resultado esperado:
@@ -278,21 +269,21 @@ Resultado esperado:
 
 ### 10.6 Smoke test automatizado de API (opcional)
 
-Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
-```
-
-Linux/macOS/Git Bash:
+Linux/macOS/Git Bash (recomendado):
 
 ```bash
 bash ./mlops/scripts/smoke_api.sh
 ```
 
-### 10.7 Reiniciar entrenamiento (si se requiere nueva corrida)
+Windows PowerShell (opcional):
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
+```
+
+### 10.7 Reiniciar entrenamiento (si se requiere nueva corrida)
+
+```bash
 docker compose run --rm trainer
 ```
 
@@ -300,13 +291,13 @@ docker compose run --rm trainer
 
 Detener servicios manteniendo datos:
 
-```powershell
+```bash
 docker compose down
 ```
 
 Detener y limpiar volumenes (reset completo local):
 
-```powershell
+```bash
 docker compose down -v
 ```
 
@@ -317,7 +308,7 @@ Si `mlflow` falla al iniciar con `ModuleNotFoundError: pkg_resources`:
 1. Reconstruir sin cache la imagen de `mlflow`.
 2. Volver a levantar stack.
 
-```powershell
+```bash
 docker compose build --no-cache mlflow
 docker compose up -d
 ```
