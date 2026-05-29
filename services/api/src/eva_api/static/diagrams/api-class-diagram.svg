@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Diagrama de Clases - EVA API</title>
+  <desc id="desc">Relaciones entre DTOs principales de la API y respuestas.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7fafc; }
+      .box { fill: #ffffff; stroke: #1f2d3d; stroke-width: 2; rx: 12; }
+      .header { fill: #1f2d3d; }
+      .hText { fill: #ffffff; font: 700 20px 'Segoe UI', Tahoma, sans-serif; }
+      .tText { fill: #1f2d3d; font: 500 16px 'Segoe UI', Tahoma, sans-serif; }
+      .title { fill: #111827; font: 700 34px 'Segoe UI', Tahoma, sans-serif; }
+      .subtitle { fill: #374151; font: 500 20px 'Segoe UI', Tahoma, sans-serif; }
+      .line { stroke: #334155; stroke-width: 2.2; }
+      .label { fill: #334155; font: 600 14px 'Segoe UI', Tahoma, sans-serif; }
+      .accent { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.6; }
+      .accentText { fill: #1d4ed8; font: 700 14px 'Segoe UI', Tahoma, sans-serif; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#334155" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="900" />
+  <text class="title" x="60" y="70">EVA Agro Analytics - Diagrama de clases API</text>
+  <text class="subtitle" x="60" y="104">Modelos Pydantic usados en contratos de entrada/salida</text>
+
+  <g transform="translate(60,150)">
+    <rect class="box" width="350" height="170" />
+    <rect class="header" width="350" height="44" />
+    <text class="hText" x="16" y="30">PredictRequest</text>
+    <text class="tText" x="16" y="74">+ model_name: str | None</text>
+    <text class="tText" x="16" y="102">+ features: Dict[str, Any]</text>
+    <rect class="accent" x="16" y="124" width="286" height="30" rx="6" />
+    <text class="accentText" x="26" y="144">POST /api/v1/predict (request body)</text>
+  </g>
+
+  <g transform="translate(500,150)">
+    <rect class="box" width="390" height="220" />
+    <rect class="header" width="390" height="44" />
+    <text class="hText" x="16" y="30">PredictResponse</text>
+    <text class="tText" x="16" y="74">+ prediction_id: int</text>
+    <text class="tText" x="16" y="100">+ timestamp: str</text>
+    <text class="tText" x="16" y="126">+ model_name: str</text>
+    <text class="tText" x="16" y="152">+ model_version: str</text>
+    <text class="tText" x="16" y="178">+ prediction: str</text>
+    <text class="tText" x="16" y="204">+ blocked_proxy_columns: list[str]</text>
+  </g>
+
+  <g transform="translate(960,150)">
+    <rect class="box" width="360" height="220" />
+    <rect class="header" width="360" height="44" />
+    <text class="hText" x="16" y="30">PredictionsResponse</text>
+    <text class="tText" x="16" y="74">+ count: int</text>
+    <text class="tText" x="16" y="100">+ items: list[PredictionItem]</text>
+    <text class="tText" x="16" y="138">PredictionItem:</text>
+    <text class="tText" x="32" y="164">id, timestamp, model_name,</text>
+    <text class="tText" x="32" y="188">model_version, api_version, features</text>
+  </g>
+
+  <g transform="translate(60,430)">
+    <rect class="box" width="390" height="240" />
+    <rect class="header" width="390" height="44" />
+    <text class="hText" x="16" y="30">ModelsResponse</text>
+    <text class="tText" x="16" y="74">+ default_model: str</text>
+    <text class="tText" x="16" y="100">+ available_models: list[str]</text>
+    <text class="tText" x="16" y="126">+ metrics: Dict[str, MetricScores]</text>
+    <text class="tText" x="16" y="168">MetricScores:</text>
+    <text class="tText" x="32" y="194">accuracy, precision_macro,</text>
+    <text class="tText" x="32" y="218">recall_macro, f1_macro</text>
+  </g>
+
+  <g transform="translate(500,430)">
+    <rect class="box" width="390" height="240" />
+    <rect class="header" width="390" height="44" />
+    <text class="hText" x="16" y="30">ModelMetadataResponse</text>
+    <text class="tText" x="16" y="74">+ api_version: str</text>
+    <text class="tText" x="16" y="100">+ default_model: str</text>
+    <text class="tText" x="16" y="126">+ experiment_name: str | None</text>
+    <text class="tText" x="16" y="152">+ training_timestamp: str | None</text>
+    <text class="tText" x="16" y="178">+ models: list[ModelArtifactInfo]</text>
+    <text class="tText" x="16" y="208">ModelArtifactInfo: version, trained_at, metrics</text>
+  </g>
+
+  <g transform="translate(960,430)">
+    <rect class="box" width="360" height="240" />
+    <rect class="header" width="360" height="44" />
+    <text class="hText" x="16" y="30">InputSchemaResponse</text>
+    <text class="tText" x="16" y="74">+ target_column: str</text>
+    <text class="tText" x="16" y="100">+ blocked_proxy_columns: list[str]</text>
+    <text class="tText" x="16" y="126">+ required_features: list[str]</text>
+    <text class="tText" x="16" y="152">+ features: list[FeatureField]</text>
+    <text class="tText" x="16" y="190">FeatureField: name, type, nullable, example</text>
+  </g>
+
+  <line class="line" x1="410" y1="235" x2="500" y2="235" marker-end="url(#arrow)" />
+  <text class="label" x="430" y="224">usa</text>
+
+  <line class="line" x1="890" y1="260" x2="960" y2="260" marker-end="url(#arrow)" />
+  <text class="label" x="908" y="248">lista</text>
+
+  <line class="line" x1="255" y1="430" x2="255" y2="320" marker-end="url(#arrow)" />
+  <text class="label" x="266" y="374">catalogo</text>
+
+  <line class="line" x1="695" y1="430" x2="695" y2="370" marker-end="url(#arrow)" />
+  <text class="label" x="706" y="406">detalle</text>
+
+  <line class="line" x1="1140" y1="430" x2="1140" y2="370" marker-end="url(#arrow)" />
+  <text class="label" x="1152" y="406">contrato</text>
+</svg>

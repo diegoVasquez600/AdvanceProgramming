@@ -66,7 +66,21 @@ Invoke-WebRequest -UseBasicParsing -Method POST http://localhost:8000/api/v1/pip
 Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/pipeline/status | Select-Object -ExpandProperty Content
 ```
 
-## 8. Apagado
+## 8. Verificacion de documentacion enriquecida (ReDoc)
+
+Validar que los assets de diagramas respondan `200`:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/db-schema.svg | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/static-docs/diagrams/api-class-diagram.svg | Select-Object -ExpandProperty StatusCode
+```
+
+En navegador abrir `http://localhost:8000/redoc` y confirmar que se visualizan:
+
+1. Diagrama de base de datos.
+2. Diagrama de clases de la API.
+
+## 9. Apagado
 
 ```powershell
 docker compose down

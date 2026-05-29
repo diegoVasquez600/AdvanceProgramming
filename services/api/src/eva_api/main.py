@@ -9,6 +9,7 @@ import joblib
 import pandas as pd
 import psycopg2
 from fastapi import FastAPI, HTTPException
+from fastapi.openapi.utils import get_openapi
 from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +29,31 @@ from .schemas import (
 )
 
 API_VERSION = "v1"
+OPENAPI_VERSION = "3.0.3"
+
+API_DESCRIPTION = """
+Plataforma de inferencia ML para EVA Agro Analytics con trazabilidad completa de predicciones.
+
+## Objetivo academico
+Esta API demuestra un flujo real de microservicios para entrenamiento, despliegue y consumo de modelos.
+
+## Flujo de negocio
+1. `trainer` genera artefactos (`*.joblib`, `schema.json`, `metrics.json`, `model_metadata.json`).
+2. `api` carga artefactos y valida payloads proxy-safe.
+3. `api` persiste inferencias en PostgreSQL para auditoria.
+4. `frontend` consume contratos versionados en `/api/v1`.
+
+## Diagrama de base de datos (PostgreSQL)
+![Diagrama DB](/static-docs/diagrams/db-schema.svg)
+
+## Diagrama de clases (DTOs y respuestas)
+![Diagrama de clases API](/static-docs/diagrams/api-class-diagram.svg)
+
+## Convenciones
+- Endpoints versionados: `/api/v1/*`
+- Endpoints legacy no versionados: compatibles pero ocultos en esquema
+- Prediccion proxy-safe: columnas bloqueadas se rechazan con `400`
+"""
 
 
 def find_project_root(start: Path) -> Path:
@@ -136,30 +162,37 @@ def load_artifacts() -> list[str]:
 load_artifacts()
 
 tags_metadata = [
-    {"name": "health", "description": "Service liveness and readiness checks."},
-    {"name": "models", "description": "Model catalog, metrics, and model metadata."},
+    {
+        "name": "health",
+        "description": "Liveness/readiness para orquestacion y smoke checks.",
+    },
+    {
+        "name": "models",
+        "description": "Catalogo de modelos cargados, metricas y metadata de artefactos.",
+    },
     {
         "name": "schema",
-        "description": "Input schema contract used by the frontend for dynamic forms.",
+        "description": "Contrato de entrada para formularios dinamicos y validacion de payload.",
     },
     {
         "name": "predictions",
-        "description": "Inference and traceable prediction history persisted in PostgreSQL.",
+        "description": "Inferencia online y trazabilidad historica persistida en PostgreSQL.",
     },
     {
         "name": "pipeline",
-        "description": "Operational helpers to inspect and refresh pipeline artifacts.",
+        "description": "Operaciones del pipeline para inspeccion y recarga de artefactos.",
     },
 ]
 
 app = FastAPI(
     title="EVA Agro Analytics API",
     version=API_VERSION,
-    description=(
-        "ML inference and tracking API for EVA.\n\n"
-        "Primary endpoints follow /api/v1. Legacy non-versioned aliases are kept for compatibility."
-    ),
+    description=API_DESCRIPTION,
     openapi_tags=tags_metadata,
+    openapi_version=OPENAPI_VERSION,
+    contact={
+        "name": "EVA Agro Analytics Team",
+    },
     redoc_url=None,
 )
 
@@ -167,6 +200,36 @@ docs_static_dir = Path(__file__).resolve().parent / "static"
 app.mount(
     "/static-docs", StaticFiles(directory=str(docs_static_dir)), name="static-docs"
 )
+
+
+def custom_openapi() -> dict[str, Any]:
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=OPENAPI_VERSION,
+        description=app.description,
+        routes=app.routes,
+        tags=tags_metadata,
+    )
+
+    openapi_schema["info"]["x-logo"] = {
+        "url": "/static-docs/diagrams/eva-logo-badge.svg",
+        "altText": "EVA Agro Analytics",
+        "backgroundColor": "#f4f5f7",
+    }
+    openapi_schema["x-tagGroups"] = [
+        {"name": "Core", "tags": ["health", "models", "schema", "predictions"]},
+        {"name": "Operations", "tags": ["pipeline"]},
+    ]
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 def get_db_dsn() -> str:
@@ -370,6 +433,10 @@ def redoc_html() -> HTMLResponse:
     response_model=PipelineStatusResponse,
     tags=["pipeline"],
     summary="Pipeline runtime status",
+    description=(
+        "Expone el estado operativo del pipeline de inferencia: modelos cargados, "
+        "artefactos disponibles y timestamp de la ultima recarga."
+    ),
 )
 def pipeline_status() -> PipelineStatusResponse:
     return get_pipeline_status_response()
@@ -380,6 +447,10 @@ def pipeline_status() -> PipelineStatusResponse:
     response_model=PipelineReloadResponse,
     tags=["pipeline"],
     summary="Reload model artifacts after retraining",
+    description=(
+        "Recarga artefactos desde el directorio de modelos sin reiniciar el contenedor API. "
+        "Usar despues de ejecutar `docker compose run --rm trainer`."
+    ),
 )
 def pipeline_reload_artifacts() -> PipelineReloadResponse:
     reloaded = load_artifacts()
@@ -396,6 +467,7 @@ def pipeline_reload_artifacts() -> PipelineReloadResponse:
     response_model=HealthResponse,
     tags=["health"],
     summary="Health check",
+    description="Endpoint de verificacion rapida para liveness/readiness.",
 )
 @app.get("/health", response_model=HealthResponse, include_in_schema=False)
 def health() -> HealthResponse:
@@ -407,6 +479,7 @@ def health() -> HealthResponse:
     response_model=ModelsResponse,
     tags=["models"],
     summary="List available models",
+    description="Lista el modelo por defecto, modelos disponibles y metricas comparativas.",
 )
 @app.get("/models", response_model=ModelsResponse, include_in_schema=False)
 def models() -> ModelsResponse:
@@ -418,6 +491,10 @@ def models() -> ModelsResponse:
     response_model=ModelMetadataResponse,
     tags=["models"],
     summary="Model metadata and metrics",
+    description=(
+        "Devuelve metadata expandida por artefacto: version, fecha de entrenamiento, "
+        "ruta de artefacto y metricas."
+    ),
 )
 @app.get("/model/info", response_model=ModelMetadataResponse, include_in_schema=False)
 def model_info() -> ModelMetadataResponse:
@@ -429,6 +506,10 @@ def model_info() -> ModelMetadataResponse:
     response_model=InputSchemaResponse,
     tags=["schema"],
     summary="Input schema for dynamic frontend forms",
+    description=(
+        "Contrato oficial de entrada para el endpoint de prediccion, incluyendo "
+        "features requeridas y columnas proxy bloqueadas."
+    ),
 )
 def input_schema() -> InputSchemaResponse:
     return get_input_schema_response()
@@ -439,6 +520,10 @@ def input_schema() -> InputSchemaResponse:
     response_model=PredictionsResponse,
     tags=["predictions"],
     summary="Prediction history with traceability",
+    description=(
+        "Retorna el historial de inferencias persistidas (maximo 100) con metadata "
+        "de version del modelo y payload de features."
+    ),
 )
 @app.get("/predictions", response_model=PredictionsResponse, include_in_schema=False)
 def predictions() -> PredictionsResponse:
@@ -450,6 +535,10 @@ def predictions() -> PredictionsResponse:
     response_model=PredictResponse,
     tags=["predictions"],
     summary="Run proxy-safe prediction",
+    description=(
+        "Ejecuta una prediccion usando `random_forest` o `logistic_regression`. "
+        "Valida columnas bloqueadas y features desconocidas antes de inferir."
+    ),
     responses={
         400: {
             "description": "Invalid model, blocked proxy columns, or unknown features",

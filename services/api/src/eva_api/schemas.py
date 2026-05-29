@@ -8,54 +8,81 @@ class ApiBaseModel(BaseModel):
 
 
 class MetricScores(ApiBaseModel):
-    accuracy: float
-    precision_macro: float
-    recall_macro: float
-    f1_macro: float
+    accuracy: float = Field(description="Exactitud global del modelo.", examples=[0.83])
+    precision_macro: float = Field(
+        description="Precision macro-promedio entre clases.", examples=[0.81]
+    )
+    recall_macro: float = Field(
+        description="Recall macro-promedio entre clases.", examples=[0.79]
+    )
+    f1_macro: float = Field(
+        description="F1 macro-promedio entre clases.", examples=[0.8]
+    )
 
 
 class ModelsResponse(ApiBaseModel):
-    default_model: str
-    available_models: list[str]
-    metrics: Dict[str, MetricScores]
+    default_model: str = Field(
+        description="Nombre del modelo por defecto para inferencia.",
+        examples=["random_forest"],
+    )
+    available_models: list[str] = Field(
+        description="Modelos cargados en memoria y listos para predecir."
+    )
+    metrics: Dict[str, MetricScores] = Field(
+        description="Metricas por modelo para comparacion rapida."
+    )
 
 
 class FeatureField(ApiBaseModel):
-    name: str
-    type: str
-    nullable: bool = True
-    description: Optional[str] = None
-    example: Optional[Any] = None
+    name: str = Field(description="Nombre tecnico de la feature.")
+    type: str = Field(description="Tipo esperado: string o number.")
+    nullable: bool = Field(default=True, description="Indica si acepta valor nulo.")
+    description: Optional[str] = Field(
+        default=None, description="Descripcion funcional de la feature."
+    )
+    example: Optional[Any] = Field(default=None, description="Ejemplo de valor valido.")
 
 
 class InputSchemaResponse(ApiBaseModel):
-    target_column: str
-    blocked_proxy_columns: list[str]
-    required_features: list[str]
-    features: list[FeatureField]
+    target_column: str = Field(description="Variable objetivo del problema.")
+    blocked_proxy_columns: list[str] = Field(
+        description="Columnas prohibidas por riesgo de leakage/proxy bias."
+    )
+    required_features: list[str] = Field(
+        description="Features aceptadas por el pipeline de inferencia."
+    )
+    features: list[FeatureField] = Field(
+        description="Catalogo detallado de features para el frontend dinamico."
+    )
 
 
 class ModelArtifactInfo(ApiBaseModel):
-    model_name: str
-    version: str
-    trained_at: str
-    artifact_path: str
-    metrics: MetricScores
+    model_name: str = Field(description="Nombre del modelo entrenado.")
+    version: str = Field(description="Version del artefacto/modelo.")
+    trained_at: str = Field(description="Fecha de entrenamiento en formato ISO-8601.")
+    artifact_path: str = Field(description="Nombre del archivo del artefacto.")
+    metrics: MetricScores = Field(description="Metricas validadas para el modelo.")
 
 
 class ModelMetadataResponse(ApiBaseModel):
-    api_version: str
-    default_model: str
+    api_version: str = Field(description="Version publica de la API.", examples=["v1"])
+    default_model: str = Field(description="Modelo por defecto configurado.")
     experiment_name: Optional[str] = None
     training_timestamp: Optional[str] = None
-    models: list[ModelArtifactInfo]
+    models: list[ModelArtifactInfo] = Field(
+        description="Lista de artefactos con metadata operativa."
+    )
 
 
 class PredictRequest(ApiBaseModel):
     model_name: Optional[str] = Field(
-        default=None, description="random_forest or logistic_regression"
+        default=None,
+        description="Modelo a usar. Si se omite, aplica el default_model.",
+        examples=["random_forest"],
     )
-    features: Dict[str, Any]
+    features: Dict[str, Any] = Field(
+        description="Diccionario de features con los nombres definidos en /schema/input."
+    )
 
     model_config = ConfigDict(
         protected_namespaces=(),
@@ -83,46 +110,54 @@ class PredictRequest(ApiBaseModel):
 
 
 class PredictResponse(ApiBaseModel):
-    prediction_id: int
-    timestamp: str
-    model_name: str
-    model_version: str
-    api_version: str
-    prediction: str
-    blocked_proxy_columns: list[str]
+    prediction_id: int = Field(description="ID de auditoria en base de datos.")
+    timestamp: str = Field(description="Timestamp de persistencia en ISO-8601.")
+    model_name: str = Field(description="Modelo usado para inferencia.")
+    model_version: str = Field(description="Version resolvida del modelo.")
+    api_version: str = Field(description="Version de API que proceso la solicitud.")
+    prediction: str = Field(description="Clase o etiqueta predicha por el modelo.")
+    blocked_proxy_columns: list[str] = Field(
+        description="Columnas bloqueadas por politica proxy-safe."
+    )
 
 
 class PredictionItem(ApiBaseModel):
-    id: int
-    timestamp: str
-    model_name: str
-    model_version: str
-    api_version: str
-    prediction: str
-    features: Dict[str, Any]
+    id: int = Field(description="Identificador de la prediccion persistida.")
+    timestamp: str = Field(description="Fecha y hora del registro.")
+    model_name: str = Field(description="Modelo utilizado en esa inferencia.")
+    model_version: str = Field(description="Version de artefacto registrada.")
+    api_version: str = Field(description="Version de API al momento de inferencia.")
+    prediction: str = Field(description="Resultado predicho.")
+    features: Dict[str, Any] = Field(description="Payload de features almacenado.")
 
 
 class PredictionsResponse(ApiBaseModel):
-    count: int
-    items: list[PredictionItem]
+    count: int = Field(description="Numero total de elementos retornados.")
+    items: list[PredictionItem] = Field(description="Historial de predicciones.")
 
 
 class HealthResponse(ApiBaseModel):
-    status: str
+    status: str = Field(description="Estado de salud de la API.", examples=["ok"])
 
 
 class PipelineStatusResponse(ApiBaseModel):
-    api_version: str
-    tracking_uri: str
-    experiment_name: str
-    models_dir: str
-    loaded_models: list[str]
-    available_artifact_files: list[str]
-    last_artifacts_reload_at: str
+    api_version: str = Field(description="Version de API expuesta.")
+    tracking_uri: str = Field(description="URI de MLflow tracking server.")
+    experiment_name: str = Field(description="Nombre de experimento activo en MLflow.")
+    models_dir: str = Field(
+        description="Directorio local de artefactos para inferencia."
+    )
+    loaded_models: list[str] = Field(description="Modelos actualmente en memoria.")
+    available_artifact_files: list[str] = Field(
+        description="Archivos de artefactos detectados en models_dir."
+    )
+    last_artifacts_reload_at: str = Field(
+        description="Timestamp ISO-8601 de la ultima recarga de artefactos."
+    )
 
 
 class PipelineReloadResponse(ApiBaseModel):
-    status: str
-    message: str
-    reloaded_models: list[str]
-    reloaded_at: str
+    status: str = Field(description="Estado de la operacion.", examples=["ok"])
+    message: str = Field(description="Mensaje de resultado para operacion humana.")
+    reloaded_models: list[str] = Field(description="Modelos recargados exitosamente.")
+    reloaded_at: str = Field(description="Timestamp de recarga de artefactos.")

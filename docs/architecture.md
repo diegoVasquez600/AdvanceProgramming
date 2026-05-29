@@ -37,6 +37,16 @@ Servicios en Docker Compose:
 2. MinIO: artifacts de MLflow.
 3. Volumen local `artifacts/models`: artefactos para inferencia en API.
 
+## ReDoc para presentacion en clase
+
+La documentacion viva en `http://localhost:8000/redoc` ahora incluye:
+
+1. Contexto del flujo de negocio end-to-end.
+2. Diagrama de base de datos (tabla `predictions`).
+3. Diagrama de clases/DTOs de la API (request/response models).
+
+Los diagramas se sirven como assets locales en `/static-docs/diagrams/*`, por lo que no dependen de Internet durante la exposicion.
+
 ## Consideraciones operativas
 
 1. `trainer` y `object-store-init` terminan en `Exited` por diseño.

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Diagrama de Base de Datos - EVA API</title>
+  <desc id="desc">Esquema de la tabla predictions en PostgreSQL.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f6f7fb; }
+      .card { fill: #ffffff; stroke: #1f2d3d; stroke-width: 2; }
+      .head { fill: #1f2d3d; }
+      .headText { fill: #ffffff; font: 700 26px 'Segoe UI', Tahoma, sans-serif; }
+      .text { fill: #1f2d3d; font: 500 20px 'Segoe UI', Tahoma, sans-serif; }
+      .muted { fill: #5e6b78; font: 500 18px 'Segoe UI', Tahoma, sans-serif; }
+      .pk { fill: #f59e0b; }
+      .chip { fill: #eaf2ff; stroke: #4c6ef5; stroke-width: 1.5; }
+      .chipText { fill: #2f4ab8; font: 700 16px 'Segoe UI', Tahoma, sans-serif; }
+      .line { stroke: #2c3e50; stroke-width: 2.5; }
+      .title { fill: #111827; font: 700 34px 'Segoe UI', Tahoma, sans-serif; }
+      .subtitle { fill: #374151; font: 500 20px 'Segoe UI', Tahoma, sans-serif; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2c3e50" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="760" />
+
+  <text class="title" x="70" y="70">EVA Agro Analytics - Diagrama de Base de Datos</text>
+  <text class="subtitle" x="70" y="106">Persistencia operacional para trazabilidad de inferencias</text>
+
+  <rect class="card" x="70" y="150" width="720" height="500" rx="14" />
+  <rect class="head" x="70" y="150" width="720" height="70" rx="14" />
+  <text class="headText" x="96" y="194">predictions (PostgreSQL)</text>
+
+  <circle class="pk" cx="104" cy="255" r="7" />
+  <text class="text" x="124" y="262">id BIGSERIAL PRIMARY KEY</text>
+
+  <text class="text" x="104" y="304">created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()</text>
+  <text class="text" x="104" y="346">model_name TEXT NOT NULL</text>
+  <text class="text" x="104" y="388">model_version TEXT NOT NULL DEFAULT 'unknown'</text>
+  <text class="text" x="104" y="430">api_version TEXT NOT NULL DEFAULT 'v1'</text>
+  <text class="text" x="104" y="472">prediction TEXT NOT NULL</text>
+  <text class="text" x="104" y="514">features_json JSONB NOT NULL</text>
+
+  <rect class="chip" x="102" y="560" width="280" height="38" rx="8" />
+  <text class="chipText" x="118" y="585">Indice natural: ORDER BY id DESC</text>
+
+  <rect class="card" x="860" y="220" width="280" height="170" rx="12" />
+  <text class="text" x="886" y="262">API /api/v1/predict</text>
+  <text class="muted" x="886" y="294">INSERT prediction</text>
+  <text class="muted" x="886" y="326">(model, version, payload)</text>
+
+  <rect class="card" x="860" y="460" width="280" height="170" rx="12" />
+  <text class="text" x="886" y="502">API /api/v1/predictions</text>
+  <text class="muted" x="886" y="534">SELECT history</text>
+  <text class="muted" x="886" y="566">(trazabilidad para demo)</text>
+
+  <line class="line" x1="792" y1="305" x2="860" y2="305" marker-end="url(#arrow)" />
+  <line class="line" x1="860" y1="545" x2="792" y2="545" marker-end="url(#arrow)" />
+
+  <text class="subtitle" x="70" y="704">Nota: esta API mantiene una tabla operacional enfocada en auditoria de inferencias.</text>
+</svg>

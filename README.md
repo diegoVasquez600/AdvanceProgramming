@@ -223,6 +223,8 @@ Resultado esperado minimo:
 
 Nota: ReDoc se sirve con bundle local dentro del contenedor `api` para evitar dependencia de CDN en tiempo de ejecucion.
 
+Adicional: ReDoc incluye diagramas embebidos (DB y clases de la API) servidos localmente en `/static-docs/diagrams/*` para presentacion en clase sin depender de Internet.
+
 ### 10.5 Prueba E2E de prediccion + persistencia
 
 ```powershell
