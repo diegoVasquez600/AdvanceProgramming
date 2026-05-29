@@ -110,10 +110,10 @@ tags_metadata = [
 ]
 
 app = FastAPI(
-    title="EVA Proxy-Safe Inference API",
+    title="EVA Agro Analytics API",
     version=API_VERSION,
     description=(
-        "Proxy-safe ML inference API for EVA.\n\n"
+        "ML inference and tracking API for EVA.\n\n"
         "Primary endpoints follow /api/v1. Legacy non-versioned aliases are kept for compatibility."
     ),
     openapi_tags=tags_metadata,

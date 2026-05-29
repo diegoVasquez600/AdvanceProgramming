@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { UseFormHandleSubmit, UseFormRegister, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -15,7 +16,13 @@ import {
 } from 'recharts';
 
 import { api } from './api';
-import type { FeatureField, PredictRequest } from './types';
+import { EVA_COLUMNS } from './evaColumns';
+import type {
+  FeatureField,
+  ModelMetadataResponse,
+  PredictRequest,
+  PredictResponse,
+} from './types';
 
 type FormValues = {
   model_name: string;
@@ -39,6 +46,14 @@ function castFeatureValue(field: FeatureField, value: string): unknown {
 }
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  );
+}
+
+function AppShell() {
   const queryClient = useQueryClient();
 
   const healthQuery = useQuery({ queryKey: ['health'], queryFn: api.health });
@@ -116,156 +131,397 @@ export default function App() {
     queryClient.invalidateQueries();
   };
 
+  const serviceCards = [
+    {
+      name: 'API REST',
+      endpoint: '/api/v1/health',
+      status: healthQuery.data?.status ?? 'cargando',
+      external: false,
+    },
+    {
+      name: 'Swagger UI',
+      endpoint: 'http://localhost:8000/docs',
+      status: 'disponible',
+      external: true,
+    },
+    {
+      name: 'ReDoc',
+      endpoint: 'http://localhost:8000/redoc',
+      status: 'disponible',
+      external: true,
+    },
+    {
+      name: 'MLflow',
+      endpoint: 'http://localhost:5000',
+      status: 'tracking',
+      external: true,
+    },
+    {
+      name: 'MinIO Console',
+      endpoint: 'http://localhost:9001',
+      status: 'object storage',
+      external: true,
+    },
+    {
+      name: 'PostgreSQL',
+      endpoint: 'localhost:5432',
+      status: 'persistencia',
+      external: false,
+    },
+  ];
+
   return (
-    <div className="page">
-      <header className="hero">
-        <div>
-          <h1 className="title">EVA Proxy-Safe ML Platform</h1>
-          <p className="subtitle">
-            Dashboard React + Vite + TypeScript con API versionada y trazabilidad.
-          </p>
-        </div>
-        <div className="api-chip">{`API /api/v1 - ${healthQuery.data?.status ?? 'loading'}`}</div>
-      </header>
-
-      <section className="grid">
-        <article className="card col-4">
-          <h2>Modelo por defecto</h2>
-          <div className="stat">{modelsQuery.data?.default_model ?? '-'}</div>
-          <div className="stat-label">Modelo activo para inferencia</div>
-        </article>
-
-        <article className="card col-4">
-          <h2>Experimento MLflow</h2>
-          <div className="stat">{metadataQuery.data?.experiment_name ?? '-'}</div>
-          <div className="stat-label">Tracking de entrenamiento</div>
-        </article>
-
-        <article className="card col-4">
-          <h2>Predicciones guardadas</h2>
-          <div className="stat">{historyQuery.data?.count ?? 0}</div>
-          <div className="stat-label">Registros trazables en PostgreSQL</div>
-        </article>
-
-        <article className="card col-8">
-          <h2>Comparativa de modelos</h2>
-          <div style={{ width: '100%', height: 280 }}>
-            <ResponsiveContainer>
-              <BarChart data={metricsChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="model" />
-                <YAxis domain={[0, 1]} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="accuracy" fill="#0d8a5f" />
-                <Bar dataKey="precision_macro" fill="#f2a41b" />
-                <Bar dataKey="recall_macro" fill="#2c6ee8" />
-                <Bar dataKey="f1_macro" fill="#1c5142" />
-              </BarChart>
-            </ResponsiveContainer>
+    <div className="app-root">
+      <div className="texture"></div>
+      <div className="page">
+        <header className="hero">
+          <div>
+            <h1 className="title">Plataforma EVA Agro Analytics</h1>
+            <p className="subtitle">
+              Arquitectura de ingenieria para analitica, inferencia y trazabilidad del dataset EVA.
+            </p>
           </div>
-        </article>
+          <div className="badge-row">
+            <span className="api-chip">{`API /api/v1 - ${healthQuery.data?.status ?? 'loading'}`}</span>
+            <span className="api-chip">{`Modelo base: ${modelsQuery.data?.default_model ?? '-'}`}</span>
+          </div>
+        </header>
 
-        <article className="card col-4">
-          <h2>Proxy columns bloqueadas</h2>
-          <ul className="code-list">
-            {(inputSchemaQuery.data?.blocked_proxy_columns ?? []).map((column) => (
-              <li key={column}>{column}</li>
-            ))}
-          </ul>
-        </article>
+        <nav className="main-nav">
+          <NavLink to="/" end>
+            Presentacion
+          </NavLink>
+          <NavLink to="/prediccion">Prediccion</NavLink>
+          <NavLink to="/servicios">Servicios y API</NavLink>
+        </nav>
 
-        <article className="card col-6">
-          <h2>Prediccion dinamica</h2>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="form-grid">
-              <label>
-                Modelo
-                <select {...register('model_name')}>
-                  {modelOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PresentationPage
+                metricsChartData={metricsChartData}
+                experimentName={metadataQuery.data?.experiment_name ?? '-'}
+                predictionCount={historyQuery.data?.count ?? 0}
+                blockedColumns={inputSchemaQuery.data?.blocked_proxy_columns ?? []}
+              />
+            }
+          />
+          <Route
+            path="/prediccion"
+            element={
+              <PredictionPage
+                modelOptions={modelOptions}
+                fields={inputSchemaQuery.data?.features ?? []}
+                register={register}
+                handleSubmit={handleSubmit}
+                onSubmit={onSubmit}
+                onReset={() => reset(defaultValues)}
+                onRefresh={refreshAll}
+                predictPending={predictMutation.isPending}
+                predictResult={predictMutation.data}
+                predictError={predictMutation.error}
+                metadata={metadataQuery.data}
+                history={historyQuery.data?.items ?? []}
+              />
+            }
+          />
+          <Route
+            path="/servicios"
+            element={<ServicesPage cards={serviceCards} />}
+          />
+        </Routes>
+      </div>
+    </div>
+  );
+}
 
-              {(inputSchemaQuery.data?.features ?? []).map((field) => (
+type PresentationPageProps = {
+  metricsChartData: Array<{
+    model: string;
+    accuracy: number;
+    precision_macro: number;
+    recall_macro: number;
+    f1_macro: number;
+  }>;
+  experimentName: string;
+  predictionCount: number;
+  blockedColumns: string[];
+};
+
+function PresentationPage(props: PresentationPageProps) {
+  return (
+    <section className="grid fade-in">
+      <article className="card col-4">
+        <h2>Experimento MLflow</h2>
+        <div className="stat">{props.experimentName}</div>
+        <div className="stat-label">Seguimiento de entrenamiento y metricas</div>
+      </article>
+
+      <article className="card col-4">
+        <h2>Predicciones registradas</h2>
+        <div className="stat">{props.predictionCount}</div>
+        <div className="stat-label">Historial con trazabilidad en PostgreSQL</div>
+      </article>
+
+      <article className="card col-4">
+        <h2>Variables no permitidas</h2>
+        <ul className="code-list">
+          {props.blockedColumns.map((column) => (
+            <li key={column}>{column}</li>
+          ))}
+        </ul>
+      </article>
+
+      <article className="card col-7">
+        <h2>Comparativa de modelos</h2>
+        <div style={{ width: '100%', height: 300 }}>
+          <ResponsiveContainer>
+            <BarChart data={props.metricsChartData}>
+              <CartesianGrid strokeDasharray="4 4" />
+              <XAxis dataKey="model" />
+              <YAxis domain={[0, 1]} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="accuracy" fill="#1f7a62" />
+              <Bar dataKey="precision_macro" fill="#f2a93b" />
+              <Bar dataKey="recall_macro" fill="#2a66d9" />
+              <Bar dataKey="f1_macro" fill="#133f35" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </article>
+
+      <article className="card col-5">
+        <h2>Narrativa de presentacion</h2>
+        <ol className="story-list">
+          <li>Contexto del problema EVA y cobertura nacional.</li>
+          <li>Arquitectura de servicios: API, entrenamiento, tracking y storage.</li>
+          <li>Comparativa de modelos y criterios de seleccion.</li>
+          <li>Demo en vivo de prediccion y consulta de historial.</li>
+          <li>Trazabilidad en MLflow y documentacion API con Swagger/ReDoc.</li>
+        </ol>
+        <Link className="text-link" to="/prediccion">
+          Ir a prediccion en vivo
+        </Link>
+      </article>
+
+      <article className="card col-12">
+        <h2>Diccionario de columnas EVA (17)</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Campo API</th>
+                <th>Tipo</th>
+                <th>Descripcion</th>
+                <th>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              {EVA_COLUMNS.map((col) => (
+                <tr key={col.apiField}>
+                  <td>{col.displayName}</td>
+                  <td>{col.apiField}</td>
+                  <td>{col.dataType}</td>
+                  <td>{col.description}</td>
+                  <td>
+                    <span className={`pill pill-${col.role}`}>
+                      {col.role === 'entrada_modelo'
+                        ? 'Entrada modelo'
+                        : col.role === 'proxy_bloqueada'
+                          ? 'Restringida'
+                          : 'Objetivo'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+type PredictionPageProps = {
+  modelOptions: string[];
+  fields: FeatureField[];
+  register: UseFormRegister<FormValues>;
+  handleSubmit: UseFormHandleSubmit<FormValues>;
+  onSubmit: (values: FormValues) => void;
+  onReset: () => void;
+  onRefresh: () => void;
+  predictPending: boolean;
+  predictResult: PredictResponse | undefined;
+  predictError: Error | null;
+  metadata: ModelMetadataResponse | undefined;
+  history: Array<{
+    id: number;
+    timestamp: string;
+    model_name: string;
+    model_version: string;
+    prediction: string;
+  }>;
+};
+
+function PredictionPage(props: PredictionPageProps) {
+  const byField = useMemo(
+    () => new Map(EVA_COLUMNS.map((col) => [col.apiField, col])),
+    []
+  );
+
+  return (
+    <section className="grid fade-in">
+      <article className="card col-7">
+        <h2>Prediccion con formulario dinamico</h2>
+        <form onSubmit={props.handleSubmit(props.onSubmit)}>
+          <div className="form-grid">
+            <label>
+              Modelo
+              <select {...props.register('model_name')}>
+                {props.modelOptions.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {props.fields.map((field) => {
+              const dictionary = byField.get(field.name);
+              return (
                 <label key={field.name}>
-                  {field.name}
+                  {dictionary?.displayName ?? field.name}
+                  <small className="label-help">
+                    {dictionary?.description ?? `Campo API: ${field.name}`}
+                  </small>
                   <input
                     type={field.type === 'number' ? 'number' : 'text'}
                     step={field.type === 'number' ? '0.01' : undefined}
                     placeholder={String(field.example ?? '')}
-                    {...register(`features.${field.name}`)}
+                    {...props.register(`features.${field.name}`)}
                   />
                 </label>
-              ))}
-            </div>
-
-            <div className="actions">
-              <button className="btn-primary" type="submit" disabled={predictMutation.isPending}>
-                {predictMutation.isPending ? 'Prediciendo...' : 'Predecir'}
-              </button>
-              <button
-                className="btn-secondary"
-                type="button"
-                onClick={() => reset(defaultValues)}
-              >
-                Limpiar
-              </button>
-              <button className="btn-secondary" type="button" onClick={refreshAll}>
-                Refrescar
-              </button>
-            </div>
-          </form>
-
-          {predictMutation.data && (
-            <div className="response-box">
-              {JSON.stringify(predictMutation.data, null, 2)}
-            </div>
-          )}
-
-          {predictMutation.error && (
-            <div className="response-box error">{String(predictMutation.error)}</div>
-          )}
-        </article>
-
-        <article className="card col-6">
-          <h2>Metadata de modelos</h2>
-          <div className="response-box">
-            {JSON.stringify(metadataQuery.data ?? {}, null, 2)}
+              );
+            })}
           </div>
-        </article>
 
-        <article className="card col-12">
-          <h2>Historial de predicciones</h2>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Timestamp</th>
-                  <th>Modelo</th>
-                  <th>Version</th>
-                  <th>Prediccion</th>
+          <div className="actions">
+            <button className="btn-primary" type="submit" disabled={props.predictPending}>
+              {props.predictPending ? 'Prediciendo...' : 'Ejecutar prediccion'}
+            </button>
+            <button className="btn-secondary" type="button" onClick={props.onReset}>
+              Limpiar
+            </button>
+            <button className="btn-secondary" type="button" onClick={props.onRefresh}>
+              Refrescar datos
+            </button>
+          </div>
+        </form>
+
+        {props.predictResult && (
+          <div className="response-box">{JSON.stringify(props.predictResult, null, 2)}</div>
+        )}
+        {props.predictError && (
+          <div className="response-box error">{String(props.predictError)}</div>
+        )}
+      </article>
+
+      <article className="card col-5">
+        <h2>Metadata de modelos</h2>
+        <div className="response-box">{JSON.stringify(props.metadata ?? {}, null, 2)}</div>
+      </article>
+
+      <article className="card col-12">
+        <h2>Historial de predicciones</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Modelo</th>
+                <th>Version</th>
+                <th>Prediccion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {props.history.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.id}</td>
+                  <td>{item.timestamp}</td>
+                  <td>{item.model_name}</td>
+                  <td>{item.model_version}</td>
+                  <td>{item.prediction}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {(historyQuery.data?.items ?? []).map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.timestamp}</td>
-                    <td>{item.model_name}</td>
-                    <td>{item.model_version}</td>
-                    <td>{item.prediction}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-    </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+type ServicesPageProps = {
+  cards: Array<{
+    name: string;
+    endpoint: string;
+    status: string;
+    external: boolean;
+  }>;
+};
+
+function ServicesPage(props: ServicesPageProps) {
+  return (
+    <section className="grid fade-in">
+      <article className="card col-12">
+        <h2>Servicios de la plataforma</h2>
+        <div className="services-grid">
+          {props.cards.map((card) => (
+            <div className="service-card" key={card.name}>
+              <strong>{card.name}</strong>
+              <span>{card.status}</span>
+              {card.external ? (
+                <a href={card.endpoint} target="_blank" rel="noreferrer">
+                  Abrir {card.endpoint}
+                </a>
+              ) : (
+                <code>{card.endpoint}</code>
+              )}
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="card col-7">
+        <h2>Endpoints API v1 recomendados para demo</h2>
+        <ul className="service-list">
+          <li>GET /api/v1/health</li>
+          <li>GET /api/v1/models</li>
+          <li>GET /api/v1/model/info</li>
+          <li>GET /api/v1/schema/input</li>
+          <li>POST /api/v1/predict</li>
+          <li>GET /api/v1/predictions</li>
+        </ul>
+      </article>
+
+      <article className="card col-5">
+        <h2>Documentacion</h2>
+        <p className="stat-label">
+          Este modulo centraliza accesos para demostrar estandares de API en clase.
+        </p>
+        <div className="actions">
+          <a className="btn-link" href="http://localhost:8000/docs" target="_blank" rel="noreferrer">
+            Swagger UI
+          </a>
+          <a className="btn-link" href="http://localhost:8000/redoc" target="_blank" rel="noreferrer">
+            ReDoc
+          </a>
+        </div>
+      </article>
+    </section>
   );
 }
