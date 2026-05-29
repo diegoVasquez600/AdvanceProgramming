@@ -164,7 +164,9 @@ app = FastAPI(
 )
 
 docs_static_dir = Path(__file__).resolve().parent / "static"
-app.mount("/static-docs", StaticFiles(directory=str(docs_static_dir)), name="static-docs")
+app.mount(
+    "/static-docs", StaticFiles(directory=str(docs_static_dir)), name="static-docs"
+)
 
 
 def get_db_dsn() -> str:
