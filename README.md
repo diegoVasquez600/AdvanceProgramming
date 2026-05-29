@@ -194,18 +194,22 @@ Estado esperado:
 ### 10.4 Pruebas de salud HTTP
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/health | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/models | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/health | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/models | Select-Object -ExpandProperty Content
 Invoke-WebRequest -UseBasicParsing http://localhost:3000 | Select-Object -ExpandProperty StatusCode
 Invoke-WebRequest -UseBasicParsing http://localhost:5000 | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/docs | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/redoc | Select-Object -ExpandProperty StatusCode
 ```
 
 Resultado esperado minimo:
 
-- `/health` retorna `{"status":"ok"}`
-- `/models` lista `random_forest` y `logistic_regression`
+- `/api/v1/health` retorna `{"status":"ok"}`
+- `/api/v1/models` lista `random_forest` y `logistic_regression`
 - Frontend responde `200`
 - MLflow responde `200`
+- Swagger UI (`/docs`) responde `200`
+- ReDoc (`/redoc`) responde `200`
 
 ### 10.5 Prueba E2E de prediccion + persistencia
 
@@ -227,8 +231,8 @@ $payload = @{
 	}
 } | ConvertTo-Json -Depth 6
 
-Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/predict -ContentType 'application/json' -Body $payload | Select-Object -ExpandProperty Content
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/predictions | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/api/v1/predict -ContentType 'application/json' -Body $payload | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions | Select-Object -ExpandProperty Content
 ```
 
 Resultado esperado:
