@@ -185,6 +185,30 @@ body {
   align-self: start;
 }
 
+.model-spotlight {
+  margin: 0.15rem 0 0.75rem;
+  border: 1px solid rgba(18, 78, 88, 0.24);
+  border-radius: 12px;
+  background: rgba(242, 251, 247, 0.85);
+  padding: 0.62rem 0.72rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.model-spotlight strong {
+  font-size: 0.82rem;
+  color: #235e5c;
+}
+
+.model-spotlight span {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.model-spotlight small {
+  color: var(--muted);
+}
+
 .mini-metric-row {
   margin-top: 0.7rem;
   display: flex;
@@ -273,6 +297,13 @@ body {
   gap: 0.7rem;
 }
 
+.context-intro {
+  margin: 0 0 0.75rem;
+  color: #1f4247;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .insight-card {
   border: 1px solid rgba(28, 84, 94, 0.2);
   border-radius: 12px;
@@ -290,6 +321,25 @@ body {
   font-size: 0.85rem;
   color: #2f4f54;
   line-height: 1.4;
+}
+
+.proxy-columns-box {
+  margin-top: 0.7rem;
+  border: 1px solid rgba(22, 84, 85, 0.18);
+  border-radius: 12px;
+  padding: 0.62rem;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.proxy-columns-box h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+}
+
+.proxy-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
 }
 
 .timeline-item {
