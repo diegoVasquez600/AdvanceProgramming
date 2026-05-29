@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UseFormHandleSubmit, UseFormRegister, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -208,6 +208,17 @@ function AppShell() {
             }
           />
           <Route
+            path="/presentation"
+            element={
+              <PresentationPage
+                metricsChartData={metricsChartData}
+                experimentName={metadataQuery.data?.experiment_name ?? '-'}
+                predictionCount={historyQuery.data?.count ?? 0}
+                blockedColumns={inputSchemaQuery.data?.blocked_proxy_columns ?? []}
+              />
+            }
+          />
+          <Route
             path="/prediccion"
             element={
               <PredictionPage
@@ -230,6 +241,7 @@ function AppShell() {
             path="/servicios"
             element={<ServicesPage cards={serviceCards} />}
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </div>

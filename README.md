@@ -163,6 +163,14 @@ Estado estable validado en clase/local (29-05-2026):
 - Docker Desktop activo
 - Puertos libres: `3000`, `5000`, `5432`, `8000`, `9000`, `9001`
 
+Configurar variables de entorno antes de levantar:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Luego ajustar credenciales/parametros en `.env` si se requiere.
+
 ### 10.2 Arranque exacto (PowerShell)
 
 Desde la raiz del proyecto:
@@ -187,8 +195,8 @@ Estado esperado:
 - `db`: `Up (healthy)`
 - `mlflow`: `Up (healthy)`
 - `object-store`: `Up`
-- `api`: `Up`
-- `frontend`: `Up`
+- `api`: `Up (healthy)`
+- `frontend`: `Up (healthy)`
 - `trainer`: `Exited (0)`
 
 ### 10.4 Pruebas de salud HTTP
@@ -285,3 +293,14 @@ Si `mlflow` falla al iniciar con `ModuleNotFoundError: pkg_resources`:
 docker compose build --no-cache mlflow
 docker compose up -d
 ```
+
+## 11. Documentacion tecnica
+
+- Arquitectura: `docs/architecture.md`
+- Runbook operativo: `docs/runbook.md`
+
+## 12. Rutas de demo frontend
+
+- Presentacion: `http://localhost:3000/presentation`
+- Prediccion: `http://localhost:3000/prediccion`
+- Servicios/API: `http://localhost:3000/servicios`

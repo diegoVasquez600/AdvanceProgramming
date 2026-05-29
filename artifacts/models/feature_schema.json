@@ -1,0 +1,84 @@
+{
+  "target_column": "ciclo_de_cultivo",
+  "required_features": [
+    "c_d_dep",
+    "departamento",
+    "c_d_mun",
+    "municipio",
+    "grupo_de_cultivo",
+    "a_o",
+    "periodo",
+    "rea_sembrada_ha",
+    "rea_cosechada_ha",
+    "producci_n_t",
+    "rendimiento_t_ha"
+  ],
+  "features": [
+    {
+      "name": "c_d_dep",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "c_d_mun",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "a_o",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "rea_sembrada_ha",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "rea_cosechada_ha",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "producci_n_t",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "rendimiento_t_ha",
+      "type": "number",
+      "nullable": true,
+      "example": 1
+    },
+    {
+      "name": "departamento",
+      "type": "string",
+      "nullable": true,
+      "example": "valor"
+    },
+    {
+      "name": "municipio",
+      "type": "string",
+      "nullable": true,
+      "example": "valor"
+    },
+    {
+      "name": "grupo_de_cultivo",
+      "type": "string",
+      "nullable": true,
+      "example": "valor"
+    },
+    {
+      "name": "periodo",
+      "type": "string",
+      "nullable": true,
+      "example": "valor"
+    }
+  ]
+}
