@@ -92,3 +92,58 @@ export type PipelineReloadResponse = {
   reloaded_models: string[];
   reloaded_at: string;
 };
+
+export type ModelRegistryItem = {
+  id: number;
+  model_name: string;
+  model_version: string;
+  artifact_path: string;
+  experiment_name?: string;
+  training_timestamp?: string;
+  metrics: Record<string, unknown>;
+  is_active: boolean;
+  deployed_at: string;
+};
+
+export type ModelRegistryResponse = {
+  count: number;
+  items: ModelRegistryItem[];
+};
+
+export type PredictionFeedbackRequest = {
+  true_label: string;
+  source?: string;
+  notes?: string;
+};
+
+export type PredictionFeedbackItem = {
+  id: number;
+  prediction_id: number;
+  true_label: string;
+  source: string;
+  notes?: string;
+  labeled_at: string;
+};
+
+export type PredictionFeedbackResponse = {
+  status: string;
+  item: PredictionFeedbackItem;
+};
+
+export type PredictionFeedbackListResponse = {
+  count: number;
+  items: PredictionFeedbackItem[];
+};
+
+export type FeedbackMetricItem = {
+  model_name: string;
+  model_version: string;
+  labeled_count: number;
+  exact_match_count: number;
+  observed_accuracy: number;
+};
+
+export type FeedbackMetricsResponse = {
+  count: number;
+  items: FeedbackMetricItem[];
+};

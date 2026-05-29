@@ -2,6 +2,8 @@ import json
 import os
 import time
 import uuid
+import csv
+import io
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -9,10 +11,10 @@ from typing import Any
 import joblib
 import pandas as pd
 import psycopg2
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.openapi.utils import get_openapi
 from fastapi.openapi.docs import get_redoc_html
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .schemas import (
@@ -23,8 +25,10 @@ from .schemas import (
     ModelRegistryResponse,
     ModelMetadataResponse,
     ModelsResponse,
+    FeedbackMetricsResponse,
     PipelineReloadResponse,
     PipelineStatusResponse,
+    FeedbackMetricItem,
     PredictionFeedbackItem,
     PredictionFeedbackListResponse,
     PredictionFeedbackRequest,
@@ -54,7 +58,7 @@ Esta API demuestra un flujo real de microservicios para entrenamiento, despliegu
 ![Diagrama DB](/static-docs/diagrams/db-governance-schema.svg)
 
 ## Diagrama de clases (DTOs y respuestas)
-![Diagrama de clases API](/static-docs/diagrams/api-class-diagram.svg)
+![Diagrama de clases API](/static-docs/diagrams/api-class-governance-diagram.svg)
 
 ## Convenciones
 - Endpoints versionados: `/api/v1/*`
@@ -456,7 +460,12 @@ def save_prediction(
             return prediction_id, timestamp
 
 
-def get_predictions(limit: int = 100) -> PredictionsResponse:
+def normalize_pagination(limit: int, offset: int) -> tuple[int, int]:
+    return max(1, min(limit, 500)), max(0, offset)
+
+
+def get_predictions(limit: int = 100, offset: int = 0) -> PredictionsResponse:
+    limit, offset = normalize_pagination(limit, offset)
     dsn = get_db_dsn()
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
@@ -466,8 +475,9 @@ def get_predictions(limit: int = 100) -> PredictionsResponse:
                 FROM predictions
                 ORDER BY id DESC
                 LIMIT %s
+                OFFSET %s
                 """,
-                (limit,),
+                (limit, offset),
             )
             rows = cur.fetchall()
 
@@ -486,7 +496,8 @@ def get_predictions(limit: int = 100) -> PredictionsResponse:
     return PredictionsResponse(count=len(items), items=items)
 
 
-def get_model_registry(limit: int = 100) -> ModelRegistryResponse:
+def get_model_registry(limit: int = 100, offset: int = 0) -> ModelRegistryResponse:
+    limit, offset = normalize_pagination(limit, offset)
     dsn = get_db_dsn()
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
@@ -505,8 +516,9 @@ def get_model_registry(limit: int = 100) -> ModelRegistryResponse:
                 FROM model_registry
                 ORDER BY deployed_at DESC, id DESC
                 LIMIT %s
+                OFFSET %s
                 """,
-                (limit,),
+                (limit, offset),
             )
             rows = cur.fetchall()
 
@@ -576,7 +588,10 @@ def save_prediction_feedback(
     return PredictionFeedbackResponse(status="ok", item=item)
 
 
-def list_prediction_feedback(limit: int = 100) -> PredictionFeedbackListResponse:
+def list_prediction_feedback(
+    limit: int = 100, offset: int = 0
+) -> PredictionFeedbackListResponse:
+    limit, offset = normalize_pagination(limit, offset)
     dsn = get_db_dsn()
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
@@ -586,8 +601,9 @@ def list_prediction_feedback(limit: int = 100) -> PredictionFeedbackListResponse
                 FROM prediction_feedback
                 ORDER BY labeled_at DESC
                 LIMIT %s
+                OFFSET %s
                 """,
-                (limit,),
+                (limit, offset),
             )
             rows = cur.fetchall()
 
@@ -603,6 +619,91 @@ def list_prediction_feedback(limit: int = 100) -> PredictionFeedbackListResponse
         for r in rows
     ]
     return PredictionFeedbackListResponse(count=len(items), items=items)
+
+
+def get_feedback_metrics() -> FeedbackMetricsResponse:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    p.model_name,
+                    p.model_version,
+                    COUNT(*) AS labeled_count,
+                    SUM(CASE WHEN p.prediction = f.true_label THEN 1 ELSE 0 END) AS exact_match_count,
+                    AVG(CASE WHEN p.prediction = f.true_label THEN 1.0 ELSE 0.0 END) AS observed_accuracy
+                FROM prediction_feedback f
+                INNER JOIN predictions p ON p.id = f.prediction_id
+                GROUP BY p.model_name, p.model_version
+                ORDER BY labeled_count DESC, p.model_name ASC
+                """
+            )
+            rows = cur.fetchall()
+
+    items = [
+        FeedbackMetricItem(
+            model_name=r[0],
+            model_version=r[1],
+            labeled_count=int(r[2]),
+            exact_match_count=int(r[3]),
+            observed_accuracy=float(r[4] or 0.0),
+        )
+        for r in rows
+    ]
+    return FeedbackMetricsResponse(count=len(items), items=items)
+
+
+def export_feedback_csv() -> str:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    f.prediction_id,
+                    p.model_name,
+                    p.model_version,
+                    p.prediction,
+                    f.true_label,
+                    f.source,
+                    f.notes,
+                    f.labeled_at
+                FROM prediction_feedback f
+                INNER JOIN predictions p ON p.id = f.prediction_id
+                ORDER BY f.labeled_at DESC
+                """
+            )
+            rows = cur.fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "prediction_id",
+            "model_name",
+            "model_version",
+            "prediction",
+            "true_label",
+            "source",
+            "notes",
+            "labeled_at",
+        ]
+    )
+    for row in rows:
+        writer.writerow(
+            [
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                row[5],
+                row[6] or "",
+                row[7].isoformat(),
+            ]
+        )
+    return output.getvalue()
 
 
 def get_models_response() -> ModelsResponse:
@@ -797,8 +898,11 @@ def input_schema() -> InputSchemaResponse:
     ),
 )
 @app.get("/predictions", response_model=PredictionsResponse, include_in_schema=False)
-def predictions() -> PredictionsResponse:
-    return get_predictions(limit=100)
+def predictions(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> PredictionsResponse:
+    return get_predictions(limit=limit, offset=offset)
 
 
 @app.get(
@@ -811,8 +915,11 @@ def predictions() -> PredictionsResponse:
         "(version, metadata y metricas)."
     ),
 )
-def models_registry() -> ModelRegistryResponse:
-    return get_model_registry(limit=100)
+def models_registry(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> ModelRegistryResponse:
+    return get_model_registry(limit=limit, offset=offset)
 
 
 @app.post(
@@ -839,8 +946,41 @@ def predictions_feedback(
     summary="List recent prediction feedback",
     description="Consulta las etiquetas reales registradas para predicciones.",
 )
-def predictions_feedback_list() -> PredictionFeedbackListResponse:
-    return list_prediction_feedback(limit=100)
+def predictions_feedback_list(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> PredictionFeedbackListResponse:
+    return list_prediction_feedback(limit=limit, offset=offset)
+
+
+@app.get(
+    "/api/v1/predictions/feedback/metrics",
+    response_model=FeedbackMetricsResponse,
+    tags=["governance"],
+    summary="Aggregate observed feedback metrics",
+    description=(
+        "Calcula metricas observadas sobre feedback etiquetado (match exacto y accuracy) "
+        "agregadas por modelo/version."
+    ),
+)
+def predictions_feedback_metrics() -> FeedbackMetricsResponse:
+    return get_feedback_metrics()
+
+
+@app.get(
+    "/api/v1/predictions/feedback/export.csv",
+    response_class=PlainTextResponse,
+    tags=["governance"],
+    summary="Export prediction feedback as CSV",
+    description="Exporta feedback etiquetado a CSV para analisis externo.",
+)
+def predictions_feedback_export_csv() -> PlainTextResponse:
+    csv_data = export_feedback_csv()
+    return PlainTextResponse(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=prediction_feedback.csv"},
+    )
 
 
 @app.post(

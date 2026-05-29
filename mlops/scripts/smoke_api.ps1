@@ -73,12 +73,34 @@ Assert-True ($predictLogReg.StatusCode -eq 200) "POST /api/v1/predict logistic_r
 $registry = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/models/registry"
 Assert-True ($registry.StatusCode -eq 200) "GET /api/v1/models/registry failed"
 
+$registryPaged = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/models/registry?limit=5&offset=0"
+Assert-True ($registryPaged.StatusCode -eq 200) "GET /api/v1/models/registry paged failed"
+
 $feedbackBody = @{ true_label = "demo_label"; source = "smoke"; notes = "automated check" } | ConvertTo-Json -Depth 6
 $feedback = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $feedbackBody "$BaseUrl$ApiPrefix/predictions/$($predictRfJson.prediction_id)/feedback"
 Assert-True ($feedback.StatusCode -eq 200) "POST /api/v1/predictions/{id}/feedback failed"
 
 $feedbackList = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/predictions/feedback"
 Assert-True ($feedbackList.StatusCode -eq 200) "GET /api/v1/predictions/feedback failed"
+
+$feedbackListPaged = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/predictions/feedback?limit=5&offset=0"
+Assert-True ($feedbackListPaged.StatusCode -eq 200) "GET /api/v1/predictions/feedback paged failed"
+
+$feedbackMetrics = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/predictions/feedback/metrics"
+Assert-True ($feedbackMetrics.StatusCode -eq 200) "GET /api/v1/predictions/feedback/metrics failed"
+
+$feedbackCsv = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/predictions/feedback/export.csv"
+Assert-True ($feedbackCsv.StatusCode -eq 200) "GET /api/v1/predictions/feedback/export.csv failed"
+Assert-True ($feedbackCsv.Content -match "prediction_id,model_name,model_version") "CSV export header missing"
+
+$feedbackMissingStatus = -1
+try {
+    $feedbackMissing = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $feedbackBody "$BaseUrl$ApiPrefix/predictions/99999999/feedback"
+    $feedbackMissingStatus = [int]$feedbackMissing.StatusCode
+} catch {
+    $feedbackMissingStatus = Get-StatusCodeFromException -Exception $_.Exception
+}
+Assert-True ($feedbackMissingStatus -eq 404) "Feedback for unknown prediction_id did not return 404"
 
 $proxyRejectBody = @{ model_name = "random_forest"; features = @{ cultivo = "Cafe" } } | ConvertTo-Json -Depth 6
 $proxyStatus = -1

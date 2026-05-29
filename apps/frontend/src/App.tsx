@@ -20,8 +20,11 @@ import { EVA_COLUMNS } from './evaColumns';
 import type {
   FeatureField,
   ModelMetadataResponse,
+  ModelRegistryResponse,
+  FeedbackMetricsResponse,
   PipelineReloadResponse,
   PipelineStatusResponse,
+  PredictionFeedbackListResponse,
   PredictRequest,
   PredictResponse,
 } from './types';
@@ -67,11 +70,23 @@ function AppShell() {
   });
   const historyQuery = useQuery({
     queryKey: ['predictions'],
-    queryFn: api.predictions,
+    queryFn: () => api.predictions(100, 0),
   });
   const pipelineStatusQuery = useQuery({
     queryKey: ['pipelineStatus'],
     queryFn: api.pipelineStatus,
+  });
+  const modelRegistryQuery = useQuery<ModelRegistryResponse>({
+    queryKey: ['modelRegistry'],
+    queryFn: () => api.modelRegistry(50, 0),
+  });
+  const feedbackListQuery = useQuery<PredictionFeedbackListResponse>({
+    queryKey: ['feedbackList'],
+    queryFn: () => api.predictionFeedback(20, 0),
+  });
+  const feedbackMetricsQuery = useQuery<FeedbackMetricsResponse>({
+    queryKey: ['feedbackMetrics'],
+    queryFn: api.predictionFeedbackMetrics,
   });
 
   const modelOptions = modelsQuery.data?.available_models ?? [];
@@ -184,6 +199,24 @@ function AppShell() {
       status: 'persistencia',
       external: false,
     },
+    {
+      name: 'Model Registry',
+      endpoint: '/api/v1/models/registry',
+      status: `${modelRegistryQuery.data?.count ?? 0} registros`,
+      external: false,
+    },
+    {
+      name: 'Prediction Feedback',
+      endpoint: '/api/v1/predictions/feedback',
+      status: `${feedbackListQuery.data?.count ?? 0} etiquetas`,
+      external: false,
+    },
+    {
+      name: 'Feedback Metrics',
+      endpoint: '/api/v1/predictions/feedback/metrics',
+      status: `${feedbackMetricsQuery.data?.count ?? 0} agregados`,
+      external: false,
+    },
   ];
 
   return (
@@ -263,6 +296,12 @@ function AppShell() {
                 reloadResult={reloadArtifactsMutation.data}
                 reloadPending={reloadArtifactsMutation.isPending}
                 reloadError={reloadArtifactsMutation.error ? String(reloadArtifactsMutation.error) : null}
+                modelRegistry={modelRegistryQuery.data}
+                modelRegistryError={modelRegistryQuery.error ? String(modelRegistryQuery.error) : null}
+                feedbackList={feedbackListQuery.data}
+                feedbackListError={feedbackListQuery.error ? String(feedbackListQuery.error) : null}
+                feedbackMetrics={feedbackMetricsQuery.data}
+                feedbackMetricsError={feedbackMetricsQuery.error ? String(feedbackMetricsQuery.error) : null}
                 onReloadArtifacts={() => reloadArtifactsMutation.mutate()}
               />
             }
@@ -515,6 +554,12 @@ type ServicesPageProps = {
   reloadResult: PipelineReloadResponse | undefined;
   reloadPending: boolean;
   reloadError: string | null;
+  modelRegistry: ModelRegistryResponse | undefined;
+  modelRegistryError: string | null;
+  feedbackList: PredictionFeedbackListResponse | undefined;
+  feedbackListError: string | null;
+  feedbackMetrics: FeedbackMetricsResponse | undefined;
+  feedbackMetricsError: string | null;
   onReloadArtifacts: () => void;
 };
 
@@ -550,7 +595,12 @@ function ServicesPage(props: ServicesPageProps) {
           <li>GET /api/v1/pipeline/status</li>
           <li>POST /api/v1/pipeline/reload-artifacts</li>
           <li>POST /api/v1/predict</li>
-          <li>GET /api/v1/predictions</li>
+          <li>GET /api/v1/predictions?limit=20&offset=0</li>
+          <li>GET /api/v1/models/registry?limit=20&offset=0</li>
+          <li>POST /api/v1/predictions/{'{id}'}/feedback</li>
+          <li>GET /api/v1/predictions/feedback?limit=20&offset=0</li>
+          <li>GET /api/v1/predictions/feedback/metrics</li>
+          <li>GET /api/v1/predictions/feedback/export.csv</li>
         </ul>
       </article>
 
@@ -585,6 +635,20 @@ function ServicesPage(props: ServicesPageProps) {
         {props.pipelineError && <div className="response-box error">{props.pipelineError}</div>}
         {props.reloadResult && <div className="response-box">{JSON.stringify(props.reloadResult, null, 2)}</div>}
         {props.reloadError && <div className="response-box error">{props.reloadError}</div>}
+      </article>
+
+      <article className="card col-6">
+        <h2>Governance: model registry</h2>
+        <div className="response-box">{JSON.stringify(props.modelRegistry ?? {}, null, 2)}</div>
+        {props.modelRegistryError && <div className="response-box error">{props.modelRegistryError}</div>}
+      </article>
+
+      <article className="card col-6">
+        <h2>Governance: feedback y metricas observadas</h2>
+        <div className="response-box">{JSON.stringify(props.feedbackList ?? {}, null, 2)}</div>
+        <div className="response-box">{JSON.stringify(props.feedbackMetrics ?? {}, null, 2)}</div>
+        {props.feedbackListError && <div className="response-box error">{props.feedbackListError}</div>}
+        {props.feedbackMetricsError && <div className="response-box error">{props.feedbackMetricsError}</div>}
       </article>
     </section>
   );

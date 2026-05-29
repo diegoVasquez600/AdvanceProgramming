@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
+  <title id="title">Diagrama de Clases API + Governance</title>
+  <desc id="desc">Resumen de DTOs principales para prediccion, registro de modelos y feedback.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7fafc; }
+      .box { fill: #ffffff; stroke: #1f2d3d; stroke-width: 2; }
+      .header { fill: #1f2d3d; }
+      .h { fill: #ffffff; font: 700 20px 'Segoe UI', Tahoma, sans-serif; }
+      .t { fill: #1f2d3d; font: 500 15px 'Segoe UI', Tahoma, sans-serif; }
+      .title { fill: #111827; font: 700 32px 'Segoe UI', Tahoma, sans-serif; }
+      .sub { fill: #374151; font: 500 18px 'Segoe UI', Tahoma, sans-serif; }
+      .line { stroke: #334155; stroke-width: 2.2; }
+      .lbl { fill: #334155; font: 600 13px 'Segoe UI', Tahoma, sans-serif; }
+      .accent { fill: #e7f5ff; stroke: #1c7ed6; stroke-width: 1.4; }
+      .accent-t { fill: #1c4b94; font: 700 13px 'Segoe UI', Tahoma, sans-serif; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#334155" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="920" />
+  <text class="title" x="56" y="64">EVA Agro Analytics - Clases API (Core + Governance)</text>
+  <text class="sub" x="56" y="96">Contratos Pydantic para prediccion, trazabilidad y feedback con ground truth</text>
+
+  <g transform="translate(60,140)">
+    <rect class="box" width="360" height="170" rx="10" />
+    <rect class="header" width="360" height="42" rx="10" />
+    <text class="h" x="16" y="28">PredictRequest</text>
+    <text class="t" x="16" y="72">+ model_name: str | None</text>
+    <text class="t" x="16" y="98">+ features: Dict[str, Any]</text>
+    <rect class="accent" x="16" y="122" width="295" height="30" rx="6" />
+    <text class="accent-t" x="26" y="141">POST /api/v1/predict</text>
+  </g>
+
+  <g transform="translate(480,140)">
+    <rect class="box" width="390" height="210" rx="10" />
+    <rect class="header" width="390" height="42" rx="10" />
+    <text class="h" x="16" y="28">PredictResponse</text>
+    <text class="t" x="16" y="72">+ prediction_id, timestamp, model_name</text>
+    <text class="t" x="16" y="98">+ model_version, api_version</text>
+    <text class="t" x="16" y="124">+ prediction</text>
+    <text class="t" x="16" y="150">+ blocked_proxy_columns</text>
+    <rect class="accent" x="16" y="170" width="335" height="30" rx="6" />
+    <text class="accent-t" x="26" y="189">base para feedback posterior</text>
+  </g>
+
+  <g transform="translate(930,140)">
+    <rect class="box" width="400" height="210" rx="10" />
+    <rect class="header" width="400" height="42" rx="10" />
+    <text class="h" x="16" y="28">PredictionsResponse</text>
+    <text class="t" x="16" y="72">+ count: int</text>
+    <text class="t" x="16" y="98">+ items: list[PredictionItem]</text>
+    <text class="t" x="16" y="130">PredictionItem: id, model_name,</text>
+    <text class="t" x="16" y="156">model_version, prediction, features</text>
+  </g>
+
+  <g transform="translate(60,410)">
+    <rect class="box" width="420" height="220" rx="10" />
+    <rect class="header" width="420" height="42" rx="10" />
+    <text class="h" x="16" y="28">ModelRegistryResponse</text>
+    <text class="t" x="16" y="72">+ count: int</text>
+    <text class="t" x="16" y="98">+ items: list[ModelRegistryItem]</text>
+    <text class="t" x="16" y="130">ModelRegistryItem: model_name, version,</text>
+    <text class="t" x="16" y="156">artifact_path, metrics, deployed_at</text>
+    <rect class="accent" x="16" y="176" width="330" height="30" rx="6" />
+    <text class="accent-t" x="26" y="195">GET /api/v1/models/registry</text>
+  </g>
+
+  <g transform="translate(530,410)">
+    <rect class="box" width="430" height="260" rx="10" />
+    <rect class="header" width="430" height="42" rx="10" />
+    <text class="h" x="16" y="28">PredictionFeedback*</text>
+    <text class="t" x="16" y="72">PredictionFeedbackRequest:</text>
+    <text class="t" x="32" y="96">true_label, source, notes</text>
+    <text class="t" x="16" y="128">PredictionFeedbackResponse:</text>
+    <text class="t" x="32" y="152">status, item</text>
+    <text class="t" x="16" y="184">PredictionFeedbackListResponse:</text>
+    <text class="t" x="32" y="208">count, items</text>
+    <rect class="accent" x="16" y="224" width="370" height="28" rx="6" />
+    <text class="accent-t" x="24" y="242">POST/GET /api/v1/predictions/*/feedback</text>
+  </g>
+
+  <g transform="translate(1010,410)">
+    <rect class="box" width="320" height="220" rx="10" />
+    <rect class="header" width="320" height="42" rx="10" />
+    <text class="h" x="16" y="28">FeedbackMetricsResponse</text>
+    <text class="t" x="16" y="72">+ count: int</text>
+    <text class="t" x="16" y="98">+ items: list[FeedbackMetricItem]</text>
+    <text class="t" x="16" y="130">FeedbackMetricItem:</text>
+    <text class="t" x="32" y="154">labeled_count, exact_match_count,</text>
+    <text class="t" x="32" y="178">observed_accuracy</text>
+  </g>
+
+  <g transform="translate(420,730)">
+    <rect class="box" width="560" height="120" rx="10" />
+    <rect class="header" width="560" height="42" rx="10" />
+    <text class="h" x="16" y="28">Export CSV</text>
+    <text class="t" x="16" y="74">GET /api/v1/predictions/feedback/export.csv</text>
+    <text class="t" x="16" y="98">Salida: prediction_id, model_name, prediction, true_label, labeled_at</text>
+  </g>
+
+  <line class="line" x1="420" y1="220" x2="480" y2="220" marker-end="url(#arrow)" />
+  <text class="lbl" x="438" y="208">request/response</text>
+
+  <line class="line" x1="870" y1="250" x2="930" y2="250" marker-end="url(#arrow)" />
+  <text class="lbl" x="888" y="238">historial</text>
+
+  <line class="line" x1="675" y1="350" x2="675" y2="410" marker-end="url(#arrow)" />
+  <text class="lbl" x="686" y="390">prediccion -> feedback</text>
+
+  <line class="line" x1="960" y1="540" x2="1010" y2="540" marker-end="url(#arrow)" />
+  <text class="lbl" x="968" y="528">agregado</text>
+
+  <line class="line" x1="745" y1="670" x2="700" y2="730" marker-end="url(#arrow)" />
+  <text class="lbl" x="716" y="706">export</text>
+</svg>

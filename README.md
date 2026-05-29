@@ -225,6 +225,16 @@ Nota: ReDoc se sirve con bundle local dentro del contenedor `api` para evitar de
 
 Adicional: ReDoc incluye diagramas embebidos (DB y clases de la API) servidos localmente en `/static-docs/diagrams/*` para presentacion en clase sin depender de Internet.
 
+Governance v2 agregado:
+
+- `GET /api/v1/models/registry`
+- `POST /api/v1/predictions/{prediction_id}/feedback`
+- `GET /api/v1/predictions/feedback`
+- `GET /api/v1/predictions/feedback/metrics`
+- `GET /api/v1/predictions/feedback/export.csv`
+
+Migracion SQL versionada disponible en `mlops/migrations/001_governance_schema.sql`.
+
 ### 10.5 Prueba E2E de prediccion + persistencia
 
 ```powershell

@@ -33,6 +33,8 @@ Servicios en Docker Compose:
 9. `GET /api/v1/models/registry`
 10. `POST /api/v1/predictions/{prediction_id}/feedback`
 11. `GET /api/v1/predictions/feedback`
+12. `GET /api/v1/predictions/feedback/metrics`
+13. `GET /api/v1/predictions/feedback/export.csv`
 
 ## Persistencia
 
@@ -50,6 +52,7 @@ La documentacion viva en `http://localhost:8000/redoc` ahora incluye:
 1. Contexto del flujo de negocio end-to-end.
 2. Diagrama de base de datos (tabla `predictions`).
 3. Diagrama de clases/DTOs de la API (request/response models).
+4. Flujo governance: registry, feedback y metricas observadas.
 
 Los diagramas se sirven como assets locales en `/static-docs/diagrams/*`, por lo que no dependen de Internet durante la exposicion.
 

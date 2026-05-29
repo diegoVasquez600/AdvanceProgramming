@@ -90,12 +90,27 @@ assert_contains "${predict_logreg_resp}" '"model_name":"logistic_regression"' "P
 registry_resp="$(request GET "${API_PREFIX}/models/registry" "" 200)"
 assert_contains "${registry_resp}" '"items"' "GET /models/registry should return items"
 
+registry_paged_resp="$(request GET "${API_PREFIX}/models/registry?limit=5&offset=0" "" 200)"
+assert_contains "${registry_paged_resp}" '"items"' "GET /models/registry paged should return items"
+
 feedback_body='{"true_label":"demo_label","source":"smoke","notes":"automated check"}'
 feedback_resp="$(request POST "${API_PREFIX}/predictions/${prediction_id}/feedback" "${feedback_body}" 200)"
 assert_contains "${feedback_resp}" '"status":"ok"' "POST /predictions/{id}/feedback should return ok"
 
 feedback_list_resp="$(request GET "${API_PREFIX}/predictions/feedback" "" 200)"
 assert_contains "${feedback_list_resp}" '"items"' "GET /predictions/feedback should return items"
+
+feedback_list_paged_resp="$(request GET "${API_PREFIX}/predictions/feedback?limit=5&offset=0" "" 200)"
+assert_contains "${feedback_list_paged_resp}" '"items"' "GET /predictions/feedback paged should return items"
+
+feedback_metrics_resp="$(request GET "${API_PREFIX}/predictions/feedback/metrics" "" 200)"
+assert_contains "${feedback_metrics_resp}" '"items"' "GET /predictions/feedback/metrics should return items"
+
+feedback_csv_resp="$(request GET "${API_PREFIX}/predictions/feedback/export.csv" "" 200)"
+assert_contains "${feedback_csv_resp}" 'prediction_id,model_name,model_version' "GET /predictions/feedback/export.csv should return csv header"
+
+feedback_missing_resp="$(request POST "${API_PREFIX}/predictions/99999999/feedback" "${feedback_body}" 404)"
+assert_contains "${feedback_missing_resp}" 'prediction_id 99999999 not found' "Unknown prediction_id feedback should return 404"
 
 proxy_reject='{"model_name":"random_forest","features":{"cultivo":"Cafe"}}'
 proxy_reject_resp="$(request POST "${API_PREFIX}/predict" "${proxy_reject}" 400)"

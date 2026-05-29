@@ -156,7 +156,9 @@ class ModelRegistryItem(ApiBaseModel):
 
 class ModelRegistryResponse(ApiBaseModel):
     count: int = Field(description="Numero total de modelos listados.")
-    items: list[ModelRegistryItem] = Field(description="Entradas del registro de modelos.")
+    items: list[ModelRegistryItem] = Field(
+        description="Entradas del registro de modelos."
+    )
 
 
 class PredictionFeedbackRequest(ApiBaseModel):
@@ -189,6 +191,27 @@ class PredictionFeedbackListResponse(ApiBaseModel):
     count: int = Field(description="Cantidad de feedbacks retornados.")
     items: list[PredictionFeedbackItem] = Field(
         description="Listado de feedback de predicciones."
+    )
+
+
+class FeedbackMetricItem(ApiBaseModel):
+    model_name: str = Field(description="Nombre del modelo evaluado.")
+    model_version: str = Field(description="Version del modelo evaluado.")
+    labeled_count: int = Field(
+        description="Cantidad de predicciones con etiqueta real."
+    )
+    exact_match_count: int = Field(
+        description="Cantidad de aciertos exactos (prediction == true_label)."
+    )
+    observed_accuracy: float = Field(
+        description="Accuracy observada sobre feedback disponible."
+    )
+
+
+class FeedbackMetricsResponse(ApiBaseModel):
+    count: int = Field(description="Cantidad de filas agregadas.")
+    items: list[FeedbackMetricItem] = Field(
+        description="Metricas agregadas por modelo/version."
     )
 
 
