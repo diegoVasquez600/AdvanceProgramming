@@ -2,3 +2,13 @@
 .venv/
 __pycache__/
 .ipynb_checkpoints/
+
+# Frontend dependencies and build outputs
+node_modules/
+apps/frontend/node_modules/
+apps/frontend/dist/
+*.tsbuildinfo
+
+# Generated Vite/TS config outputs
+apps/frontend/vite.config.js
+apps/frontend/vite.config.d.ts

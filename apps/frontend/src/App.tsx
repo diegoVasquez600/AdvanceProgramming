@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { UseFormHandleSubmit, UseFormRegister, useForm } from 'react-hook-form';
+import {
+  UseFormHandleSubmit,
+  UseFormRegister,
+  UseFormSetValue,
+  useForm,
+} from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
@@ -34,10 +39,68 @@ type FormValues = {
   features: Record<string, string>;
 };
 
+type Preset = {
+  key: string;
+  title: string;
+  description: string;
+  values: Record<string, string>;
+};
+
 const formSchema = z.object({
   model_name: z.string().min(1, 'Select a model'),
   features: z.record(z.string()),
 });
+
+const PERIOD_OPTIONS = ['A', 'B'];
+const DEP_OPTIONS = ['Antioquia', 'Boyaca', 'Cundinamarca', 'Meta', 'Nariño', 'Valle del Cauca'];
+const MUN_OPTIONS_BY_DEP: Record<string, string[]> = {
+  Antioquia: ['Medellin', 'Rionegro', 'Turbo'],
+  Boyaca: ['Tunja', 'Duitama', 'Sogamoso'],
+  Cundinamarca: ['Bogota', 'Soacha', 'Facatativa'],
+  Meta: ['Villavicencio', 'Granada', 'Acacias'],
+  'Nariño': ['Pasto', 'Ipiales', 'Tumaco'],
+  'Valle del Cauca': ['Cali', 'Palmira', 'Tulua'],
+};
+const CULTIVO_OPTIONS = ['Cereales', 'Frutales', 'Leguminosas', 'Tuberculos'];
+
+const DEMO_PRESETS: Preset[] = [
+  {
+    key: 'maiz-andino',
+    title: 'Maiz andino',
+    description: 'Escenario de rendimiento medio-alto en zona andina.',
+    values: {
+      c_d_dep: '5',
+      departamento: 'Antioquia',
+      c_d_mun: '1',
+      municipio: 'Medellin',
+      grupo_de_cultivo: 'Cereales',
+      a_o: '2023',
+      periodo: 'A',
+      rea_sembrada_ha: '10.5',
+      rea_cosechada_ha: '10.1',
+      producci_n_t: '43',
+      rendimiento_t_ha: '4.2',
+    },
+  },
+  {
+    key: 'frutal-valle',
+    title: 'Frutal valle',
+    description: 'Escenario de area amplia y cosecha estable.',
+    values: {
+      c_d_dep: '76',
+      departamento: 'Valle del Cauca',
+      c_d_mun: '1',
+      municipio: 'Cali',
+      grupo_de_cultivo: 'Frutales',
+      a_o: '2024',
+      periodo: 'B',
+      rea_sembrada_ha: '18',
+      rea_cosechada_ha: '17.2',
+      producci_n_t: '68',
+      rendimiento_t_ha: '3.95',
+    },
+  },
+];
 
 function castFeatureValue(field: FeatureField, value: string): unknown {
   if (value.trim() === '') {
@@ -105,10 +168,11 @@ function AppShell() {
     };
   }, [inputSchemaQuery.data?.features, modelsQuery.data?.default_model]);
 
-  const { register, handleSubmit, reset } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     values: defaultValues,
   });
+  const watchedFeatures = watch('features');
 
   const predictMutation = useMutation({
     mutationFn: (payload: PredictRequest) => api.predict(payload),
@@ -160,6 +224,17 @@ function AppShell() {
 
   const refreshAll = () => {
     queryClient.invalidateQueries();
+  };
+
+  const applyPreset = (presetKey: string) => {
+    const preset = DEMO_PRESETS.find((p) => p.key === presetKey);
+    if (!preset) {
+      return;
+    }
+
+    Object.entries(preset.values).forEach(([field, value]) => {
+      setValue(`features.${field}`, value, { shouldDirty: true });
+    });
   };
 
   const serviceCards = [
@@ -274,10 +349,13 @@ function AppShell() {
                 modelOptions={modelOptions}
                 fields={inputSchemaQuery.data?.features ?? []}
                 register={register}
+                setValue={setValue}
                 handleSubmit={handleSubmit}
                 onSubmit={onSubmit}
                 onReset={() => reset(defaultValues)}
                 onRefresh={refreshAll}
+                onApplyPreset={applyPreset}
+                watchedFeatures={watchedFeatures ?? {}}
                 predictPending={predictMutation.isPending}
                 predictResult={predictMutation.data}
                 predictError={predictMutation.error}
@@ -327,6 +405,13 @@ type PresentationPageProps = {
 };
 
 function PresentationPage(props: PresentationPageProps) {
+  const bestModel = useMemo(() => {
+    if (!props.metricsChartData.length) {
+      return null;
+    }
+    return [...props.metricsChartData].sort((a, b) => b.f1_macro - a.f1_macro)[0];
+  }, [props.metricsChartData]);
+
   return (
     <section className="grid fade-in">
       <article className="card col-4">
@@ -350,7 +435,15 @@ function PresentationPage(props: PresentationPageProps) {
         </ul>
       </article>
 
-      <article className="card col-7">
+      <article className="card col-4 accent-card">
+        <h2>Modelo recomendado</h2>
+        <div className="stat">{bestModel?.model ?? 'calculando'}</div>
+        <div className="stat-label">
+          F1 macro: {bestModel ? bestModel.f1_macro.toFixed(3) : '-'}
+        </div>
+      </article>
+
+      <article className="card col-8">
         <h2>Comparativa de modelos</h2>
         <div style={{ width: '100%', height: 300 }}>
           <ResponsiveContainer>
@@ -369,18 +462,38 @@ function PresentationPage(props: PresentationPageProps) {
         </div>
       </article>
 
-      <article className="card col-5">
-        <h2>Narrativa de presentacion</h2>
+      <article className="card col-4">
+        <h2>Narrativa sugerida (15 min)</h2>
         <ol className="story-list">
-          <li>Contexto del problema EVA y cobertura nacional.</li>
-          <li>Arquitectura de servicios: API, entrenamiento, tracking y storage.</li>
-          <li>Comparativa de modelos y criterios de seleccion.</li>
-          <li>Demo en vivo de prediccion y consulta de historial.</li>
-          <li>Trazabilidad en MLflow y documentacion API con Swagger/ReDoc.</li>
+          <li>Problema EVA y por que se excluyen columnas proxy.</li>
+          <li>Arquitectura desacoplada en Docker Compose.</li>
+          <li>Entrenamiento, artefactos y trazabilidad en MLflow.</li>
+          <li>Prediccion guiada + feedback de ground truth.</li>
+          <li>Cierre con metricas observadas y export CSV.</li>
         </ol>
         <Link className="text-link" to="/prediccion">
           Ir a prediccion en vivo
         </Link>
+      </article>
+
+      <article className="card col-12">
+        <h2>Arquitectura del sistema (visual)</h2>
+        <p className="stat-label">
+          Flujo: datos EVA - entrenamiento - modelos - API - frontend - feedback - metricas observadas.
+        </p>
+        <div className="architecture-flow">
+          <div className="flow-node">Dataset EVA</div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-node">Trainer + MLflow</div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-node">Artifacts (MinIO/volumen)</div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-node">API FastAPI</div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-node">Frontend React</div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-node">Feedback + Governance</div>
+        </div>
       </article>
 
       <article className="card col-12">
@@ -426,10 +539,13 @@ type PredictionPageProps = {
   modelOptions: string[];
   fields: FeatureField[];
   register: UseFormRegister<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
   handleSubmit: UseFormHandleSubmit<FormValues>;
   onSubmit: (values: FormValues) => void;
   onReset: () => void;
   onRefresh: () => void;
+  onApplyPreset: (presetKey: string) => void;
+  watchedFeatures: Record<string, string>;
   predictPending: boolean;
   predictResult: PredictResponse | undefined;
   predictError: Error | null;
@@ -448,11 +564,116 @@ function PredictionPage(props: PredictionPageProps) {
     () => new Map(EVA_COLUMNS.map((col) => [col.apiField, col])),
     []
   );
+  const selectedDep = props.watchedFeatures.departamento || '';
+  const municipioOptions = MUN_OPTIONS_BY_DEP[selectedDep] ?? [];
+
+  const coreFields = ['c_d_dep', 'departamento', 'c_d_mun', 'municipio', 'a_o', 'periodo'];
+  const productionFields = ['grupo_de_cultivo', 'rea_sembrada_ha', 'rea_cosechada_ha', 'producci_n_t', 'rendimiento_t_ha'];
+
+  const groupedFields = {
+    contexto: props.fields.filter((f) => coreFields.includes(f.name)),
+    produccion: props.fields.filter((f) => productionFields.includes(f.name)),
+    otros: props.fields.filter(
+      (f) => !coreFields.includes(f.name) && !productionFields.includes(f.name)
+    ),
+  };
+
+  const renderFieldInput = (field: FeatureField) => {
+    if (field.name === 'departamento') {
+      return (
+        <select {...props.register(`features.${field.name}`)}>
+          <option value="">Selecciona departamento</option>
+          {DEP_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (field.name === 'municipio') {
+      return (
+        <select {...props.register(`features.${field.name}`)}>
+          <option value="">Selecciona municipio</option>
+          {municipioOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (field.name === 'periodo') {
+      return (
+        <select {...props.register(`features.${field.name}`)}>
+          <option value="">Selecciona periodo</option>
+          {PERIOD_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (field.name === 'grupo_de_cultivo') {
+      return (
+        <select {...props.register(`features.${field.name}`)}>
+          <option value="">Selecciona grupo de cultivo</option>
+          {CULTIVO_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        type={field.type === 'number' ? 'number' : 'text'}
+        step={field.type === 'number' ? '0.01' : undefined}
+        placeholder={String(field.example ?? '')}
+        {...props.register(`features.${field.name}`)}
+      />
+    );
+  };
+
+  const renderField = (field: FeatureField) => {
+    const dictionary = byField.get(field.name);
+    return (
+      <label key={field.name}>
+        {dictionary?.displayName ?? field.name}
+        <small className="label-help">
+          {dictionary?.description ?? `Campo API: ${field.name}`}
+        </small>
+        {renderFieldInput(field)}
+      </label>
+    );
+  };
 
   return (
     <section className="grid fade-in">
       <article className="card col-7">
-        <h2>Prediccion con formulario dinamico</h2>
+        <h2>Prediccion guiada para demostracion</h2>
+        <p className="stat-label">
+          Usa presets para clase o completa manualmente los campos.
+        </p>
+        <div className="preset-row">
+          {DEMO_PRESETS.map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              className="preset-btn"
+              onClick={() => props.onApplyPreset(preset.key)}
+              title={preset.description}
+            >
+              {preset.title}
+            </button>
+          ))}
+        </div>
         <form onSubmit={props.handleSubmit(props.onSubmit)}>
           <div className="form-grid">
             <label>
@@ -465,25 +686,20 @@ function PredictionPage(props: PredictionPageProps) {
                 ))}
               </select>
             </label>
-
-            {props.fields.map((field) => {
-              const dictionary = byField.get(field.name);
-              return (
-                <label key={field.name}>
-                  {dictionary?.displayName ?? field.name}
-                  <small className="label-help">
-                    {dictionary?.description ?? `Campo API: ${field.name}`}
-                  </small>
-                  <input
-                    type={field.type === 'number' ? 'number' : 'text'}
-                    step={field.type === 'number' ? '0.01' : undefined}
-                    placeholder={String(field.example ?? '')}
-                    {...props.register(`features.${field.name}`)}
-                  />
-                </label>
-              );
-            })}
           </div>
+
+          <h3 className="section-title">Contexto geografico y temporal</h3>
+          <div className="form-grid">{groupedFields.contexto.map(renderField)}</div>
+
+          <h3 className="section-title">Produccion y rendimiento</h3>
+          <div className="form-grid">{groupedFields.produccion.map(renderField)}</div>
+
+          {groupedFields.otros.length > 0 && (
+            <>
+              <h3 className="section-title">Otros campos disponibles</h3>
+              <div className="form-grid">{groupedFields.otros.map(renderField)}</div>
+            </>
+          )}
 
           <div className="actions">
             <button className="btn-primary" type="submit" disabled={props.predictPending}>
@@ -499,16 +715,42 @@ function PredictionPage(props: PredictionPageProps) {
         </form>
 
         {props.predictResult && (
-          <div className="response-box">{JSON.stringify(props.predictResult, null, 2)}</div>
+          <div className="result-banner success">
+            <strong>Prediccion lista:</strong> {props.predictResult.prediction}
+            <span>
+              Modelo: {props.predictResult.model_name} | Version: {props.predictResult.model_version}
+            </span>
+          </div>
         )}
         {props.predictError && (
-          <div className="response-box error">{String(props.predictError)}</div>
+          <div className="result-banner error">{String(props.predictError)}</div>
         )}
       </article>
 
       <article className="card col-5">
         <h2>Metadata de modelos</h2>
-        <div className="response-box">{JSON.stringify(props.metadata ?? {}, null, 2)}</div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>Version</th>
+                <th>Accuracy</th>
+                <th>F1</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(props.metadata?.models ?? []).map((m) => (
+                <tr key={`${m.model_name}-${m.version}`}>
+                  <td>{m.model_name}</td>
+                  <td>{m.version}</td>
+                  <td>{m.metrics.accuracy.toFixed(3)}</td>
+                  <td>{m.metrics.f1_macro.toFixed(3)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </article>
 
       <article className="card col-12">
@@ -564,6 +806,12 @@ type ServicesPageProps = {
 };
 
 function ServicesPage(props: ServicesPageProps) {
+  const metricChartData = (props.feedbackMetrics?.items ?? []).map((item) => ({
+    model: item.model_name,
+    accuracy: item.observed_accuracy,
+    labeled: item.labeled_count,
+  }));
+
   return (
     <section className="grid fade-in">
       <article className="card col-12">
@@ -628,25 +876,87 @@ function ServicesPage(props: ServicesPageProps) {
           <button className="btn-primary" type="button" onClick={props.onReloadArtifacts} disabled={props.reloadPending}>
             {props.reloadPending ? 'Recargando...' : 'Recargar artefactos de modelo'}
           </button>
+          <a className="btn-link" href="http://localhost:8000/api/v1/predictions/feedback/export.csv" target="_blank" rel="noreferrer">
+            Descargar feedback CSV
+          </a>
         </div>
-        <div className="response-box">
-          {JSON.stringify(props.pipelineStatus ?? {}, null, 2)}
+        <div className="kpi-row">
+          <div className="kpi-tile">
+            <span>Modelos cargados</span>
+            <strong>{props.pipelineStatus?.loaded_models.length ?? 0}</strong>
+          </div>
+          <div className="kpi-tile">
+            <span>Artefactos detectados</span>
+            <strong>{props.pipelineStatus?.available_artifact_files.length ?? 0}</strong>
+          </div>
+          <div className="kpi-tile">
+            <span>Ultima recarga</span>
+            <strong>{props.pipelineStatus?.last_artifacts_reload_at ?? '-'}</strong>
+          </div>
         </div>
         {props.pipelineError && <div className="response-box error">{props.pipelineError}</div>}
-        {props.reloadResult && <div className="response-box">{JSON.stringify(props.reloadResult, null, 2)}</div>}
+        {props.reloadResult && <div className="result-banner success">{props.reloadResult.message}</div>}
         {props.reloadError && <div className="response-box error">{props.reloadError}</div>}
       </article>
 
       <article className="card col-6">
         <h2>Governance: model registry</h2>
-        <div className="response-box">{JSON.stringify(props.modelRegistry ?? {}, null, 2)}</div>
+        <div className="table-wrap compact">
+          <table>
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>Version</th>
+                <th>Activo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(props.modelRegistry?.items ?? []).slice(0, 8).map((item) => (
+                <tr key={item.id}>
+                  <td>{item.model_name}</td>
+                  <td>{item.model_version}</td>
+                  <td>{item.is_active ? 'Si' : 'No'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {props.modelRegistryError && <div className="response-box error">{props.modelRegistryError}</div>}
       </article>
 
       <article className="card col-6">
         <h2>Governance: feedback y metricas observadas</h2>
-        <div className="response-box">{JSON.stringify(props.feedbackList ?? {}, null, 2)}</div>
-        <div className="response-box">{JSON.stringify(props.feedbackMetrics ?? {}, null, 2)}</div>
+        <div style={{ width: '100%', height: 220 }}>
+          <ResponsiveContainer>
+            <BarChart data={metricChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="model" />
+              <YAxis domain={[0, 1]} />
+              <Tooltip />
+              <Bar dataKey="accuracy" fill="#2ea47f" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="table-wrap compact">
+          <table>
+            <thead>
+              <tr>
+                <th>Prediccion ID</th>
+                <th>Etiqueta real</th>
+                <th>Fuente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(props.feedbackList?.items ?? []).slice(0, 8).map((item) => (
+                <tr key={item.id}>
+                  <td>{item.prediction_id}</td>
+                  <td>{item.true_label}</td>
+                  <td>{item.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {props.feedbackListError && <div className="response-box error">{props.feedbackListError}</div>}
         {props.feedbackMetricsError && <div className="response-box error">{props.feedbackMetricsError}</div>}
       </article>
