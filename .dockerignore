@@ -1,0 +1,12 @@
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints
+artifacts/models/*.joblib
+artifacts/models/metrics.csv
+artifacts/models/metrics.json
+artifacts/models/schema.json

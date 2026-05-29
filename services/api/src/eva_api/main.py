@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,8 +19,16 @@ def find_project_root(start: Path) -> Path:
     raise FileNotFoundError("artifacts/models/schema.json not found")
 
 
-project_root = find_project_root(Path(__file__).resolve())
-models_dir = project_root / "artifacts" / "models"
+def resolve_models_dir() -> Path:
+    env_dir = os.getenv("EVA_MODELS_DIR")
+    if env_dir:
+        return Path(env_dir)
+
+    project_root = find_project_root(Path(__file__).resolve())
+    return project_root / "artifacts" / "models"
+
+
+models_dir = resolve_models_dir()
 
 schema = json.loads((models_dir / "schema.json").read_text(encoding="utf-8"))
 metrics = json.loads((models_dir / "metrics.json").read_text(encoding="utf-8"))

@@ -146,3 +146,42 @@ AdvanceProgramming/
 ## 9. Recomendación de uso
 
 Si el objetivo es revisar el trabajo de análisis de datos, comienza por `Exploratory_Data_Analysis_Colombia_EVA.ipynb`. Si el objetivo es revisar el desarrollo del taller académico de álgebra lineal, abre `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`.
+
+## 10. Microservicios MVP con Docker
+
+Este proyecto incluye un MVP de microservicios con dos servicios:
+
+- `trainer`: entrena modelos proxy-safe y exporta artefactos en `artifacts/models`.
+- `api`: levanta la API de inferencia sobre esos artefactos.
+
+### Levantar el flujo completo
+
+1. Construir imágenes:
+
+```powershell
+docker compose build
+```
+
+2. Ejecutar entrenamiento (job de una sola corrida):
+
+```powershell
+docker compose run --rm trainer
+```
+
+3. Levantar la API:
+
+```powershell
+docker compose up -d api
+```
+
+4. Ejecutar smoke test automático:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
+```
+
+5. Detener servicios:
+
+```powershell
+docker compose down
+```

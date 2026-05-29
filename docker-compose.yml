@@ -1,0 +1,24 @@
+services:
+  trainer:
+    build:
+      context: .
+      dockerfile: services/trainer/Dockerfile
+    environment:
+      EVA_MAX_ROWS: "12000"
+    volumes:
+      - ./artifacts/models:/app/artifacts/models
+      - ./data:/app/data:ro
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    depends_on:
+      trainer:
+        condition: service_completed_successfully
+    environment:
+      EVA_MODELS_DIR: /app/artifacts/models
+    volumes:
+      - ./artifacts/models:/app/artifacts/models
+    ports:
+      - "8000:8000"
