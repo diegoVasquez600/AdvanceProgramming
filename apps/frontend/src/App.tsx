@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   UseFormHandleSubmit,
@@ -151,6 +151,13 @@ const DANE_BY_DEPARTMENT = DANE_LOCATION_CATALOG.reduce<Record<string, DaneLocat
 
 const DEP_OPTIONS = Object.keys(DANE_BY_DEPARTMENT).sort();
 const PERIOD_OPTIONS = Array.from(new Set(DANE_LOCATION_CATALOG.map((item) => item.periodo))).sort();
+const PERIOD_SUGGESTIONS = Array.from(
+  new Set([
+    ...PERIOD_OPTIONS,
+    ...Array.from({ length: 26 }, (_, i) => `${2000 + i}A`),
+    ...Array.from({ length: 26 }, (_, i) => `${2000 + i}B`),
+  ])
+).sort();
 const CULTIVO_OPTIONS = [
   'HORTALIZAS',
   'CEREALES',
@@ -927,6 +934,25 @@ function PredictionPage(props: PredictionPageProps) {
     ),
   };
 
+  useEffect(() => {
+    const produccionRaw = (props.watchedFeatures.producci_n_t ?? '').replace(/,/g, '').trim();
+    const cosechadaRaw = (props.watchedFeatures.rea_cosechada_ha ?? '').replace(/,/g, '').trim();
+    const produccion = Number(produccionRaw);
+    const cosechada = Number(cosechadaRaw);
+
+    if (Number.isNaN(produccion) || Number.isNaN(cosechada) || cosechada <= 0) {
+      props.setValue('features.rendimiento_t_ha', '', { shouldDirty: true });
+      return;
+    }
+
+    const inferido = (produccion / cosechada).toFixed(2);
+    props.setValue('features.rendimiento_t_ha', inferido, { shouldDirty: true });
+  }, [
+    props.setValue,
+    props.watchedFeatures.producci_n_t,
+    props.watchedFeatures.rea_cosechada_ha,
+  ]);
+
   const handleDepartamentoChange = (departamento: string) => {
     const firstLocation = DANE_BY_DEPARTMENT[departamento]?.[0];
     props.setValue('features.departamento', departamento, { shouldDirty: true });
@@ -995,19 +1021,20 @@ function PredictionPage(props: PredictionPageProps) {
     }
 
     if (field.name === 'periodo') {
-      const currentValue = props.watchedFeatures.periodo ?? '';
-      const periodOptions = currentValue && !PERIOD_OPTIONS.includes(currentValue)
-        ? [currentValue, ...PERIOD_OPTIONS]
-        : PERIOD_OPTIONS;
       return (
-        <select {...props.register(`features.${field.name}`)}>
-          <option value="">Selecciona periodo</option>
-          {periodOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <>
+          <input
+            type="text"
+            list="periodo-sugerencias"
+            placeholder="Ejemplo: 2007A"
+            {...props.register(`features.${field.name}`)}
+          />
+          <datalist id="periodo-sugerencias">
+            {PERIOD_SUGGESTIONS.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+        </>
       );
     }
 
@@ -1035,6 +1062,18 @@ function PredictionPage(props: PredictionPageProps) {
           readOnly
           className="field-readonly"
           placeholder="Inferido automaticamente por DANE"
+          {...props.register(`features.${field.name}`)}
+        />
+      );
+    }
+
+    if (field.name === 'rendimiento_t_ha') {
+      return (
+        <input
+          type="text"
+          readOnly
+          className="field-readonly"
+          placeholder="Inferido: produccion / area cosechada"
           {...props.register(`features.${field.name}`)}
         />
       );
@@ -1104,6 +1143,9 @@ function PredictionPage(props: PredictionPageProps) {
           <div className="form-grid">{groupedFields.contexto.map(renderField)}</div>
 
           <h3 className="section-title">Produccion y rendimiento</h3>
+          <p className="label-help">
+            El rendimiento (t/ha) se calcula automaticamente como produccion total dividida por area cosechada.
+          </p>
           <div className="form-grid">{groupedFields.produccion.map(renderField)}</div>
 
           {groupedFields.otros.length > 0 && (
