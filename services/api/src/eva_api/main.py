@@ -82,7 +82,9 @@ models_dir = resolve_models_dir()
 
 schema = json.loads((models_dir / "schema.json").read_text(encoding="utf-8"))
 metrics = json.loads((models_dir / "metrics.json").read_text(encoding="utf-8"))
-feature_schema = read_optional_json(models_dir / "feature_schema.json") or infer_feature_schema()
+feature_schema = (
+    read_optional_json(models_dir / "feature_schema.json") or infer_feature_schema()
+)
 model_metadata = read_optional_json(models_dir / "model_metadata.json")
 
 loaded_models: dict[str, Any] = {}
@@ -159,7 +161,9 @@ def model_version_for(model_name: str) -> str:
 
     model_path = models_dir / f"{model_name}.joblib"
     if model_path.exists():
-        return datetime.fromtimestamp(model_path.stat().st_mtime, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(
+            model_path.stat().st_mtime, tz=timezone.utc
+        ).isoformat()
     return "unknown"
 
 
@@ -178,7 +182,13 @@ def save_prediction(
                 VALUES (%s, %s, %s, %s, %s::jsonb)
                 RETURNING id, created_at
                 """,
-                (model_name, model_version, API_VERSION, prediction, json.dumps(features)),
+                (
+                    model_name,
+                    model_version,
+                    API_VERSION,
+                    prediction,
+                    json.dumps(features),
+                ),
             )
             row = cur.fetchone()
             return int(row[0]), row[1].isoformat()
@@ -226,7 +236,9 @@ def get_input_schema_response() -> InputSchemaResponse:
     return InputSchemaResponse(
         target_column=schema["target_column"],
         blocked_proxy_columns=schema["blocked_proxy_columns"],
-        required_features=feature_schema.get("required_features", schema["allowed_features"]),
+        required_features=feature_schema.get(
+            "required_features", schema["allowed_features"]
+        ),
         features=feature_schema.get("features", []),
     )
 
@@ -239,12 +251,16 @@ def get_metadata_response() -> ModelMetadataResponse:
         metadata_item = metadata_models.get(model_name, {})
         trained_at = metadata_item.get("trained_at")
         if not trained_at and model_path.exists():
-            trained_at = datetime.fromtimestamp(model_path.stat().st_mtime, tz=timezone.utc).isoformat()
+            trained_at = datetime.fromtimestamp(
+                model_path.stat().st_mtime, tz=timezone.utc
+            ).isoformat()
 
         items.append(
             ModelArtifactInfo(
                 model_name=model_name,
-                version=str(metadata_item.get("version", model_version_for(model_name))),
+                version=str(
+                    metadata_item.get("version", model_version_for(model_name))
+                ),
                 trained_at=str(trained_at or "unknown"),
                 artifact_path=str(model_path.name),
                 metrics=metrics[model_name],
@@ -274,13 +290,23 @@ def startup_event() -> None:
     raise RuntimeError(f"Could not initialize DB table: {last_error}")
 
 
-@app.get("/api/v1/health", response_model=HealthResponse, tags=["health"], summary="Health check")
+@app.get(
+    "/api/v1/health",
+    response_model=HealthResponse,
+    tags=["health"],
+    summary="Health check",
+)
 @app.get("/health", response_model=HealthResponse, include_in_schema=False)
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@app.get("/api/v1/models", response_model=ModelsResponse, tags=["models"], summary="List available models")
+@app.get(
+    "/api/v1/models",
+    response_model=ModelsResponse,
+    tags=["models"],
+    summary="List available models",
+)
 @app.get("/models", response_model=ModelsResponse, include_in_schema=False)
 def models() -> ModelsResponse:
     return get_models_response()
@@ -388,7 +414,9 @@ def predict(payload: PredictRequest) -> PredictResponse:
 
     prediction = str(loaded_models[model_name].predict(X)[0])
     model_version = model_version_for(model_name)
-    prediction_id, timestamp = save_prediction(model_name, model_version, prediction, row)
+    prediction_id, timestamp = save_prediction(
+        model_name, model_version, prediction, row
+    )
 
     return PredictResponse(
         prediction_id=prediction_id,
