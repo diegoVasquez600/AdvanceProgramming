@@ -77,10 +77,25 @@ assert_contains "${redoc}" 'ReDoc' "GET /redoc should load redoc"
 predict_rf='{"model_name":"random_forest","features":{}}'
 predict_rf_resp="$(request POST "${API_PREFIX}/predict" "${predict_rf}" 200)"
 assert_contains "${predict_rf_resp}" '"model_name":"random_forest"' "POST /predict random_forest should return model_name"
+prediction_id="$(echo "${predict_rf_resp}" | sed -n 's/.*"prediction_id":\([0-9][0-9]*\).*/\1/p')"
+if [[ -z "${prediction_id}" ]]; then
+  echo "Assertion failed: POST /predict did not return prediction_id"
+  exit 1
+fi
 
 predict_logreg='{"model_name":"logistic_regression","features":{}}'
 predict_logreg_resp="$(request POST "${API_PREFIX}/predict" "${predict_logreg}" 200)"
 assert_contains "${predict_logreg_resp}" '"model_name":"logistic_regression"' "POST /predict logistic_regression should return model_name"
+
+registry_resp="$(request GET "${API_PREFIX}/models/registry" "" 200)"
+assert_contains "${registry_resp}" '"items"' "GET /models/registry should return items"
+
+feedback_body='{"true_label":"demo_label","source":"smoke","notes":"automated check"}'
+feedback_resp="$(request POST "${API_PREFIX}/predictions/${prediction_id}/feedback" "${feedback_body}" 200)"
+assert_contains "${feedback_resp}" '"status":"ok"' "POST /predictions/{id}/feedback should return ok"
+
+feedback_list_resp="$(request GET "${API_PREFIX}/predictions/feedback" "" 200)"
+assert_contains "${feedback_list_resp}" '"items"' "GET /predictions/feedback should return items"
 
 proxy_reject='{"model_name":"random_forest","features":{"cultivo":"Cafe"}}'
 proxy_reject_resp="$(request POST "${API_PREFIX}/predict" "${proxy_reject}" 400)"

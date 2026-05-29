@@ -136,6 +136,62 @@ class PredictionsResponse(ApiBaseModel):
     items: list[PredictionItem] = Field(description="Historial de predicciones.")
 
 
+class ModelRegistryItem(ApiBaseModel):
+    id: int = Field(description="Identificador interno del registro de modelo.")
+    model_name: str = Field(description="Nombre del modelo.")
+    model_version: str = Field(description="Version del modelo/artefacto.")
+    artifact_path: str = Field(description="Archivo de artefacto asociado.")
+    experiment_name: Optional[str] = Field(
+        default=None, description="Experimento MLflow asociado."
+    )
+    training_timestamp: Optional[str] = Field(
+        default=None, description="Fecha/hora de entrenamiento reportada por trainer."
+    )
+    metrics: Dict[str, Any] = Field(
+        description="Metricas del modelo almacenadas como snapshot JSON."
+    )
+    is_active: bool = Field(description="Indica si el registro esta activo.")
+    deployed_at: str = Field(description="Fecha/hora de alta en registro operacional.")
+
+
+class ModelRegistryResponse(ApiBaseModel):
+    count: int = Field(description="Numero total de modelos listados.")
+    items: list[ModelRegistryItem] = Field(description="Entradas del registro de modelos.")
+
+
+class PredictionFeedbackRequest(ApiBaseModel):
+    true_label: str = Field(description="Etiqueta real observada para la prediccion.")
+    source: str = Field(
+        default="manual",
+        description="Origen del feedback (manual, batch, sistema_externo, etc.).",
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Notas opcionales sobre contexto o calidad del dato real.",
+    )
+
+
+class PredictionFeedbackItem(ApiBaseModel):
+    id: int = Field(description="Identificador del registro de feedback.")
+    prediction_id: int = Field(description="Prediccion asociada.")
+    true_label: str = Field(description="Etiqueta real confirmada.")
+    source: str = Field(description="Origen del feedback.")
+    notes: Optional[str] = Field(default=None, description="Observaciones opcionales.")
+    labeled_at: str = Field(description="Fecha/hora de etiquetado en formato ISO-8601.")
+
+
+class PredictionFeedbackResponse(ApiBaseModel):
+    status: str = Field(description="Estado de la operacion.", examples=["ok"])
+    item: PredictionFeedbackItem = Field(description="Feedback persistido.")
+
+
+class PredictionFeedbackListResponse(ApiBaseModel):
+    count: int = Field(description="Cantidad de feedbacks retornados.")
+    items: list[PredictionFeedbackItem] = Field(
+        description="Listado de feedback de predicciones."
+    )
+
+
 class HealthResponse(ApiBaseModel):
     status: str = Field(description="Estado de salud de la API.", examples=["ok"])
 

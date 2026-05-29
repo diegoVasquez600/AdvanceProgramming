@@ -63,10 +63,22 @@ Assert-True ($redoc.StatusCode -eq 200) "GET /redoc failed"
 $predictRfBody = @{ model_name = "random_forest"; features = @{} } | ConvertTo-Json -Depth 6
 $predictRf = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $predictRfBody "$BaseUrl$ApiPrefix/predict"
 Assert-True ($predictRf.StatusCode -eq 200) "POST /api/v1/predict random_forest failed"
+$predictRfJson = $predictRf.Content | ConvertFrom-Json
+Assert-True ($predictRfJson.prediction_id -ne $null) "predict response missing prediction_id"
 
 $predictLogRegBody = @{ model_name = "logistic_regression"; features = @{} } | ConvertTo-Json -Depth 6
 $predictLogReg = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $predictLogRegBody "$BaseUrl$ApiPrefix/predict"
 Assert-True ($predictLogReg.StatusCode -eq 200) "POST /api/v1/predict logistic_regression failed"
+
+$registry = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/models/registry"
+Assert-True ($registry.StatusCode -eq 200) "GET /api/v1/models/registry failed"
+
+$feedbackBody = @{ true_label = "demo_label"; source = "smoke"; notes = "automated check" } | ConvertTo-Json -Depth 6
+$feedback = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $feedbackBody "$BaseUrl$ApiPrefix/predictions/$($predictRfJson.prediction_id)/feedback"
+Assert-True ($feedback.StatusCode -eq 200) "POST /api/v1/predictions/{id}/feedback failed"
+
+$feedbackList = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/predictions/feedback"
+Assert-True ($feedbackList.StatusCode -eq 200) "GET /api/v1/predictions/feedback failed"
 
 $proxyRejectBody = @{ model_name = "random_forest"; features = @{ cultivo = "Cafe" } } | ConvertTo-Json -Depth 6
 $proxyStatus = -1

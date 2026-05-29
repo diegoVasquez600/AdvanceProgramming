@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -18,10 +19,16 @@ from .schemas import (
     HealthResponse,
     InputSchemaResponse,
     ModelArtifactInfo,
+    ModelRegistryItem,
+    ModelRegistryResponse,
     ModelMetadataResponse,
     ModelsResponse,
     PipelineReloadResponse,
     PipelineStatusResponse,
+    PredictionFeedbackItem,
+    PredictionFeedbackListResponse,
+    PredictionFeedbackRequest,
+    PredictionFeedbackResponse,
     PredictRequest,
     PredictionItem,
     PredictionsResponse,
@@ -44,7 +51,7 @@ Esta API demuestra un flujo real de microservicios para entrenamiento, despliegu
 4. `frontend` consume contratos versionados en `/api/v1`.
 
 ## Diagrama de base de datos (PostgreSQL)
-![Diagrama DB](/static-docs/diagrams/db-schema.svg)
+![Diagrama DB](/static-docs/diagrams/db-governance-schema.svg)
 
 ## Diagrama de clases (DTOs y respuestas)
 ![Diagrama de clases API](/static-docs/diagrams/api-class-diagram.svg)
@@ -182,6 +189,10 @@ tags_metadata = [
         "name": "pipeline",
         "description": "Operaciones del pipeline para inspeccion y recarga de artefactos.",
     },
+    {
+        "name": "governance",
+        "description": "Trazabilidad de versiones de modelo y feedback de predicciones.",
+    },
 ]
 
 app = FastAPI(
@@ -222,7 +233,7 @@ def custom_openapi() -> dict[str, Any]:
     }
     openapi_schema["x-tagGroups"] = [
         {"name": "Core", "tags": ["health", "models", "schema", "predictions"]},
-        {"name": "Operations", "tags": ["pipeline"]},
+        {"name": "Operations", "tags": ["pipeline", "governance"]},
     ]
 
     app.openapi_schema = openapi_schema
@@ -264,6 +275,114 @@ def create_predictions_table() -> None:
             cur.execute(
                 "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS api_version TEXT NOT NULL DEFAULT 'v1'"
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_registry (
+                    id BIGSERIAL PRIMARY KEY,
+                    model_name TEXT NOT NULL,
+                    model_version TEXT NOT NULL,
+                    artifact_path TEXT NOT NULL,
+                    experiment_name TEXT,
+                    training_timestamp TEXT,
+                    metrics_json JSONB NOT NULL,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    deployed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE (model_name, model_version)
+                );
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prediction_requests (
+                    id BIGSERIAL PRIMARY KEY,
+                    prediction_id BIGINT UNIQUE NOT NULL REFERENCES predictions(id) ON DELETE CASCADE,
+                    request_id TEXT UNIQUE NOT NULL,
+                    model_registry_id BIGINT NOT NULL REFERENCES model_registry(id),
+                    api_version TEXT NOT NULL DEFAULT 'v1',
+                    status_code INTEGER NOT NULL,
+                    latency_ms INTEGER NOT NULL,
+                    error_message TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prediction_feedback (
+                    id BIGSERIAL PRIMARY KEY,
+                    prediction_id BIGINT UNIQUE NOT NULL REFERENCES predictions(id) ON DELETE CASCADE,
+                    true_label TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    notes TEXT,
+                    labeled_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_predictions_created_at ON predictions(created_at DESC)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_prediction_requests_created_at ON prediction_requests(created_at DESC)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_prediction_feedback_labeled_at ON prediction_feedback(labeled_at DESC)"
+            )
+
+
+def upsert_model_registry_record(
+    cur: psycopg2.extensions.cursor,
+    model_name: str,
+    model_version: str,
+) -> int:
+    model_path = models_dir / f"{model_name}.joblib"
+    metadata_item = model_metadata.get("models", {}).get(model_name, {})
+    training_timestamp = metadata_item.get("trained_at")
+    if not training_timestamp and model_path.exists():
+        training_timestamp = datetime.fromtimestamp(
+            model_path.stat().st_mtime, tz=timezone.utc
+        ).isoformat()
+
+    metrics_payload = metrics.get(model_name, {})
+    cur.execute(
+        """
+        INSERT INTO model_registry (
+            model_name,
+            model_version,
+            artifact_path,
+            experiment_name,
+            training_timestamp,
+            metrics_json,
+            is_active
+        )
+        VALUES (%s, %s, %s, %s, %s, %s::jsonb, TRUE)
+        ON CONFLICT (model_name, model_version)
+        DO UPDATE SET
+            artifact_path = EXCLUDED.artifact_path,
+            experiment_name = EXCLUDED.experiment_name,
+            training_timestamp = EXCLUDED.training_timestamp,
+            metrics_json = EXCLUDED.metrics_json,
+            is_active = TRUE
+        RETURNING id
+        """,
+        (
+            model_name,
+            model_version,
+            model_path.name,
+            model_metadata.get("experiment_name"),
+            str(training_timestamp or "unknown"),
+            json.dumps(metrics_payload),
+        ),
+    )
+    return int(cur.fetchone()[0])
+
+
+def sync_model_registry() -> None:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            for model_name in loaded_models:
+                version = model_version_for(model_name)
+                upsert_model_registry_record(cur, model_name, version)
 
 
 def model_version_for(model_name: str) -> str:
@@ -284,10 +403,14 @@ def save_prediction(
     model_version: str,
     prediction: str,
     features: dict[str, Any],
+    latency_ms: int,
 ) -> tuple[int, str]:
     dsn = get_db_dsn()
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
+            model_registry_id = upsert_model_registry_record(
+                cur, model_name, model_version
+            )
             cur.execute(
                 """
                 INSERT INTO predictions (model_name, model_version, api_version, prediction, features_json)
@@ -303,7 +426,34 @@ def save_prediction(
                 ),
             )
             row = cur.fetchone()
-            return int(row[0]), row[1].isoformat()
+            prediction_id = int(row[0])
+            timestamp = row[1].isoformat()
+
+            cur.execute(
+                """
+                INSERT INTO prediction_requests (
+                    prediction_id,
+                    request_id,
+                    model_registry_id,
+                    api_version,
+                    status_code,
+                    latency_ms,
+                    error_message
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    prediction_id,
+                    str(uuid.uuid4()),
+                    model_registry_id,
+                    API_VERSION,
+                    200,
+                    max(0, latency_ms),
+                    None,
+                ),
+            )
+
+            return prediction_id, timestamp
 
 
 def get_predictions(limit: int = 100) -> PredictionsResponse:
@@ -334,6 +484,125 @@ def get_predictions(limit: int = 100) -> PredictionsResponse:
         for r in rows
     ]
     return PredictionsResponse(count=len(items), items=items)
+
+
+def get_model_registry(limit: int = 100) -> ModelRegistryResponse:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    model_name,
+                    model_version,
+                    artifact_path,
+                    experiment_name,
+                    training_timestamp,
+                    metrics_json,
+                    is_active,
+                    deployed_at
+                FROM model_registry
+                ORDER BY deployed_at DESC, id DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+    items = [
+        ModelRegistryItem(
+            id=r[0],
+            model_name=r[1],
+            model_version=r[2],
+            artifact_path=r[3],
+            experiment_name=r[4],
+            training_timestamp=r[5],
+            metrics=r[6],
+            is_active=r[7],
+            deployed_at=r[8].isoformat(),
+        )
+        for r in rows
+    ]
+    return ModelRegistryResponse(count=len(items), items=items)
+
+
+def save_prediction_feedback(
+    prediction_id: int,
+    payload: PredictionFeedbackRequest,
+) -> PredictionFeedbackResponse:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM predictions WHERE id = %s",
+                (prediction_id,),
+            )
+            if not cur.fetchone():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"prediction_id {prediction_id} not found",
+                )
+
+            cur.execute(
+                """
+                INSERT INTO prediction_feedback (prediction_id, true_label, source, notes)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (prediction_id)
+                DO UPDATE SET
+                    true_label = EXCLUDED.true_label,
+                    source = EXCLUDED.source,
+                    notes = EXCLUDED.notes,
+                    labeled_at = NOW()
+                RETURNING id, prediction_id, true_label, source, notes, labeled_at
+                """,
+                (
+                    prediction_id,
+                    payload.true_label,
+                    payload.source,
+                    payload.notes,
+                ),
+            )
+            row = cur.fetchone()
+
+    item = PredictionFeedbackItem(
+        id=row[0],
+        prediction_id=row[1],
+        true_label=row[2],
+        source=row[3],
+        notes=row[4],
+        labeled_at=row[5].isoformat(),
+    )
+    return PredictionFeedbackResponse(status="ok", item=item)
+
+
+def list_prediction_feedback(limit: int = 100) -> PredictionFeedbackListResponse:
+    dsn = get_db_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, prediction_id, true_label, source, notes, labeled_at
+                FROM prediction_feedback
+                ORDER BY labeled_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+    items = [
+        PredictionFeedbackItem(
+            id=r[0],
+            prediction_id=r[1],
+            true_label=r[2],
+            source=r[3],
+            notes=r[4],
+            labeled_at=r[5].isoformat(),
+        )
+        for r in rows
+    ]
+    return PredictionFeedbackListResponse(count=len(items), items=items)
 
 
 def get_models_response() -> ModelsResponse:
@@ -411,6 +680,7 @@ def startup_event() -> None:
     for _ in range(20):
         try:
             create_predictions_table()
+            sync_model_registry()
             return
         except Exception as exc:  # noqa: BLE001
             last_error = exc
@@ -454,6 +724,7 @@ def pipeline_status() -> PipelineStatusResponse:
 )
 def pipeline_reload_artifacts() -> PipelineReloadResponse:
     reloaded = load_artifacts()
+    sync_model_registry()
     return PipelineReloadResponse(
         status="ok",
         message="Artifacts reloaded from models directory",
@@ -530,6 +801,48 @@ def predictions() -> PredictionsResponse:
     return get_predictions(limit=100)
 
 
+@app.get(
+    "/api/v1/models/registry",
+    response_model=ModelRegistryResponse,
+    tags=["governance"],
+    summary="Model registry history",
+    description=(
+        "Lista las versiones de modelo registradas para trazabilidad operacional "
+        "(version, metadata y metricas)."
+    ),
+)
+def models_registry() -> ModelRegistryResponse:
+    return get_model_registry(limit=100)
+
+
+@app.post(
+    "/api/v1/predictions/{prediction_id}/feedback",
+    response_model=PredictionFeedbackResponse,
+    tags=["governance"],
+    summary="Attach or update ground-truth feedback",
+    description=(
+        "Asocia etiqueta real (ground truth) a una prediccion para analisis posterior "
+        "de calidad de modelo."
+    ),
+)
+def predictions_feedback(
+    prediction_id: int,
+    payload: PredictionFeedbackRequest,
+) -> PredictionFeedbackResponse:
+    return save_prediction_feedback(prediction_id, payload)
+
+
+@app.get(
+    "/api/v1/predictions/feedback",
+    response_model=PredictionFeedbackListResponse,
+    tags=["governance"],
+    summary="List recent prediction feedback",
+    description="Consulta las etiquetas reales registradas para predicciones.",
+)
+def predictions_feedback_list() -> PredictionFeedbackListResponse:
+    return list_prediction_feedback(limit=100)
+
+
 @app.post(
     "/api/v1/predict",
     response_model=PredictResponse,
@@ -571,6 +884,7 @@ def predictions() -> PredictionsResponse:
 )
 @app.post("/predict", response_model=PredictResponse, include_in_schema=False)
 def predict(payload: PredictRequest) -> PredictResponse:
+    start = time.perf_counter()
     model_name = payload.model_name or schema["default_model"]
     if model_name not in loaded_models:
         raise HTTPException(status_code=400, detail=f"Invalid model_name: {model_name}")
@@ -604,8 +918,9 @@ def predict(payload: PredictRequest) -> PredictResponse:
 
     prediction = str(loaded_models[model_name].predict(X)[0])
     model_version = model_version_for(model_name)
+    latency_ms = int((time.perf_counter() - start) * 1000)
     prediction_id, timestamp = save_prediction(
-        model_name, model_version, prediction, row
+        model_name, model_version, prediction, row, latency_ms
     )
 
     return PredictResponse(

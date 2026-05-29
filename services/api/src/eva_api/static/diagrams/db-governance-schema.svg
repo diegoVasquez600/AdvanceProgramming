@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">Diagrama de Base de Datos Operacional - EVA API</title>
+  <desc id="desc">Relacion entre predictions, model_registry, prediction_requests y prediction_feedback.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f6f8fb; }
+      .title { fill: #111827; font: 700 34px 'Segoe UI', Tahoma, sans-serif; }
+      .subtitle { fill: #374151; font: 500 20px 'Segoe UI', Tahoma, sans-serif; }
+      .card { fill: #ffffff; stroke: #1f2d3d; stroke-width: 2; }
+      .head { fill: #1f2d3d; }
+      .headText { fill: #ffffff; font: 700 22px 'Segoe UI', Tahoma, sans-serif; }
+      .field { fill: #1f2d3d; font: 500 16px 'Segoe UI', Tahoma, sans-serif; }
+      .pk { fill: #f59e0b; }
+      .fk { fill: #2563eb; }
+      .rel { stroke: #334155; stroke-width: 2.4; }
+      .relText { fill: #334155; font: 600 14px 'Segoe UI', Tahoma, sans-serif; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#334155" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="860" />
+  <text class="title" x="56" y="68">EVA Agro Analytics - DB Operacional (v2)</text>
+  <text class="subtitle" x="56" y="102">Trazabilidad de predicciones + gobierno de modelos + feedback real</text>
+
+  <rect class="card" x="60" y="170" width="390" height="300" rx="12" />
+  <rect class="head" x="60" y="170" width="390" height="48" rx="12" />
+  <text class="headText" x="78" y="202">model_registry</text>
+  <circle class="pk" cx="84" cy="240" r="6" /><text class="field" x="98" y="246">id BIGSERIAL PK</text>
+  <text class="field" x="78" y="274">model_name TEXT</text>
+  <text class="field" x="78" y="302">model_version TEXT</text>
+  <text class="field" x="78" y="330">artifact_path TEXT</text>
+  <text class="field" x="78" y="358">experiment_name TEXT</text>
+  <text class="field" x="78" y="386">training_timestamp TEXT</text>
+  <text class="field" x="78" y="414">metrics_json JSONB</text>
+  <text class="field" x="78" y="442">deployed_at TIMESTAMPTZ</text>
+
+  <rect class="card" x="510" y="170" width="420" height="330" rx="12" />
+  <rect class="head" x="510" y="170" width="420" height="48" rx="12" />
+  <text class="headText" x="528" y="202">predictions</text>
+  <circle class="pk" cx="536" cy="240" r="6" /><text class="field" x="550" y="246">id BIGSERIAL PK</text>
+  <text class="field" x="528" y="274">created_at TIMESTAMPTZ</text>
+  <text class="field" x="528" y="302">model_name TEXT</text>
+  <text class="field" x="528" y="330">model_version TEXT</text>
+  <text class="field" x="528" y="358">api_version TEXT</text>
+  <text class="field" x="528" y="386">prediction TEXT</text>
+  <text class="field" x="528" y="414">features_json JSONB</text>
+
+  <rect class="card" x="980" y="170" width="360" height="300" rx="12" />
+  <rect class="head" x="980" y="170" width="360" height="48" rx="12" />
+  <text class="headText" x="998" y="202">prediction_requests</text>
+  <circle class="pk" cx="1006" cy="240" r="6" /><text class="field" x="1020" y="246">id BIGSERIAL PK</text>
+  <circle class="fk" cx="1006" cy="270" r="6" /><text class="field" x="1020" y="276">prediction_id BIGINT FK (UNIQUE)</text>
+  <circle class="fk" cx="1006" cy="300" r="6" /><text class="field" x="1020" y="306">model_registry_id BIGINT FK</text>
+  <text class="field" x="998" y="334">request_id TEXT UNIQUE</text>
+  <text class="field" x="998" y="362">status_code INTEGER</text>
+  <text class="field" x="998" y="390">latency_ms INTEGER</text>
+  <text class="field" x="998" y="418">created_at TIMESTAMPTZ</text>
+
+  <rect class="card" x="770" y="560" width="420" height="220" rx="12" />
+  <rect class="head" x="770" y="560" width="420" height="48" rx="12" />
+  <text class="headText" x="788" y="592">prediction_feedback</text>
+  <circle class="pk" cx="796" cy="630" r="6" /><text class="field" x="810" y="636">id BIGSERIAL PK</text>
+  <circle class="fk" cx="796" cy="660" r="6" /><text class="field" x="810" y="666">prediction_id BIGINT FK (UNIQUE)</text>
+  <text class="field" x="788" y="694">true_label TEXT</text>
+  <text class="field" x="788" y="722">source TEXT</text>
+  <text class="field" x="788" y="750">labeled_at TIMESTAMPTZ</text>
+
+  <line class="rel" x1="930" y1="300" x2="980" y2="300" marker-end="url(#arrow)" />
+  <text class="relText" x="936" y="288">1 : N</text>
+
+  <line class="rel" x1="980" y1="332" x2="930" y2="332" marker-end="url(#arrow)" />
+  <text class="relText" x="936" y="352">N : 1</text>
+
+  <line class="rel" x1="1120" y1="470" x2="980" y2="560" marker-end="url(#arrow)" />
+  <text class="relText" x="1030" y="520">1 : 0..1</text>
+
+  <text class="subtitle" x="56" y="820">Uso demo: /models/registry para gobierno de modelos, /predictions/{id}/feedback para ground truth.</text>
+</svg>

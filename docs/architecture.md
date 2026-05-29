@@ -30,12 +30,18 @@ Servicios en Docker Compose:
 6. `POST /api/v1/pipeline/reload-artifacts`
 7. `POST /api/v1/predict`
 8. `GET /api/v1/predictions`
+9. `GET /api/v1/models/registry`
+10. `POST /api/v1/predictions/{prediction_id}/feedback`
+11. `GET /api/v1/predictions/feedback`
 
 ## Persistencia
 
-1. PostgreSQL: tabla `predictions` con `model_name`, `model_version`, `api_version`, `prediction`, `features_json`, timestamps.
-2. MinIO: artifacts de MLflow.
-3. Volumen local `artifacts/models`: artefactos para inferencia en API.
+1. PostgreSQL `predictions`: historial base de inferencias (`model_name`, `model_version`, `api_version`, `prediction`, `features_json`, timestamps).
+2. PostgreSQL `model_registry`: catalogo versionado de modelos desplegados y metricas snapshot.
+3. PostgreSQL `prediction_requests`: metadata operacional por inferencia (`request_id`, `latency_ms`, `status_code`, FK a `predictions` y `model_registry`).
+4. PostgreSQL `prediction_feedback`: ground truth por prediccion (1:1 sobre `predictions`) para analisis de calidad post-despliegue.
+5. MinIO: artifacts de MLflow.
+6. Volumen local `artifacts/models`: artefactos para inferencia en API.
 
 ## ReDoc para presentacion en clase
 
