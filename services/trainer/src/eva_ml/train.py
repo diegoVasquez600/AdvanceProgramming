@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import mlflow
@@ -100,6 +101,29 @@ def main() -> None:
         "default_model": "random_forest",
     }
 
+    feature_schema = {
+        "target_column": TARGET_COLUMN,
+        "required_features": list(X.columns),
+        "features": [
+            {
+                "name": col,
+                "type": "number",
+                "nullable": True,
+                "example": 1,
+            }
+            for col in num_cols
+        ]
+        + [
+            {
+                "name": col,
+                "type": "string",
+                "nullable": True,
+                "example": "valor",
+            }
+            for col in cat_cols
+        ],
+    }
+
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
@@ -139,6 +163,15 @@ def main() -> None:
     }
 
     metrics = {}
+    training_timestamp = datetime.now(timezone.utc).isoformat()
+    model_metadata = {
+        "api_version": "v1",
+        "training_timestamp": training_timestamp,
+        "experiment_name": experiment_name,
+        "tracking_uri": tracking_uri,
+        "default_model": schema["default_model"],
+        "models": {},
+    }
 
     with mlflow.start_run(run_name="training_summary"):
         mlflow.log_param("target_column", TARGET_COLUMN)
@@ -156,6 +189,11 @@ def main() -> None:
 
                 joblib_path = artifacts_dir / f"{name}.joblib"
                 joblib.dump(pipe, joblib_path)
+                model_metadata["models"][name] = {
+                    "version": training_timestamp,
+                    "trained_at": training_timestamp,
+                    "artifact": joblib_path.name,
+                }
 
                 mlflow.log_param("model_name", name)
                 mlflow.log_param("target_column", TARGET_COLUMN)
@@ -172,6 +210,12 @@ def main() -> None:
     (artifacts_dir / "metrics.json").write_text(
         json.dumps(metrics, indent=2), encoding="utf-8"
     )
+    (artifacts_dir / "feature_schema.json").write_text(
+        json.dumps(feature_schema, indent=2), encoding="utf-8"
+    )
+    (artifacts_dir / "model_metadata.json").write_text(
+        json.dumps(model_metadata, indent=2), encoding="utf-8"
+    )
 
     # Keep baseline stats for documentation and quick checks.
     metrics_df = (
@@ -185,6 +229,12 @@ def main() -> None:
         mlflow.log_artifact(str(artifacts_dir / "schema.json"), artifact_path="reports")
         mlflow.log_artifact(
             str(artifacts_dir / "metrics.json"), artifact_path="reports"
+        )
+        mlflow.log_artifact(
+            str(artifacts_dir / "feature_schema.json"), artifact_path="reports"
+        )
+        mlflow.log_artifact(
+            str(artifacts_dir / "model_metadata.json"), artifact_path="reports"
         )
 
     print("Training complete. Artifacts generated at:")

@@ -147,47 +147,137 @@ AdvanceProgramming/
 
 Si el objetivo es revisar el trabajo de análisis de datos, comienza por `Exploratory_Data_Analysis_Colombia_EVA.ipynb`. Si el objetivo es revisar el desarrollo del taller académico de álgebra lineal, abre `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`.
 
-## 10. Microservicios MVP con Docker
+## 10. Runbook de demo estable (Docker full-stack)
 
-Este proyecto incluye un MVP de microservicios con dos servicios:
+Estado estable validado en clase/local (29-05-2026):
 
-- `trainer`: entrena modelos proxy-safe y exporta artefactos en `artifacts/models`.
-- `api`: levanta la API de inferencia sobre esos artefactos.
+- `db` (PostgreSQL)
+- `object-store` + `object-store-init` (MinIO)
+- `mlflow` (tracking server)
+- `trainer` (job one-shot, termina en `Exited` cuando finaliza)
+- `api` (FastAPI inferencia + persistencia en PostgreSQL)
+- `frontend` (Nginx + UI de demo)
 
-### Levantar el flujo completo
+### 10.1 Prerrequisitos
 
-1. Construir imágenes:
+- Docker Desktop activo
+- Puertos libres: `3000`, `5000`, `5432`, `8000`, `9000`, `9001`
 
-```powershell
-docker compose build
-```
+### 10.2 Arranque exacto (PowerShell)
 
-2. Ejecutar entrenamiento (job de una sola corrida):
-
-```powershell
-docker compose run --rm trainer
-```
-
-3. Levantar la API:
+Desde la raiz del proyecto:
 
 ```powershell
-docker compose up -d api
+docker compose up -d --build
 ```
 
-4. Ejecutar smoke test automático:
+Nota importante:
+
+- Es esperado que `trainer` quede en `Exited` al terminar (no es error).
+- `object-store-init` tambien termina en `Exited` tras crear buckets.
+
+### 10.3 Verificacion de estado de contenedores
+
+```powershell
+docker compose ps
+```
+
+Estado esperado:
+
+- `db`: `Up (healthy)`
+- `mlflow`: `Up (healthy)`
+- `object-store`: `Up`
+- `api`: `Up`
+- `frontend`: `Up`
+- `trainer`: `Exited (0)`
+
+### 10.4 Pruebas de salud HTTP
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/health | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/models | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:3000 | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing http://localhost:5000 | Select-Object -ExpandProperty StatusCode
+```
+
+Resultado esperado minimo:
+
+- `/health` retorna `{"status":"ok"}`
+- `/models` lista `random_forest` y `logistic_regression`
+- Frontend responde `200`
+- MLflow responde `200`
+
+### 10.5 Prueba E2E de prediccion + persistencia
+
+```powershell
+$payload = @{
+	model_name = 'random_forest'
+	features = @{
+		c_d_dep = 5
+		departamento = 'Antioquia'
+		c_d_mun = 1
+		municipio = 'Medellin'
+		grupo_de_cultivo = 'Cereales'
+		a_o = 2023
+		periodo = 'A'
+		rea_sembrada_ha = 10.5
+		rea_cosechada_ha = 10.1
+		producci_n_t = 43.0
+		rendimiento_t_ha = 4.2
+	}
+} | ConvertTo-Json -Depth 6
+
+Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/predict -ContentType 'application/json' -Body $payload | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/predictions | Select-Object -ExpandProperty Content
+```
+
+Resultado esperado:
+
+- `/predict` responde con `model_name`, `prediction` y `blocked_proxy_columns`.
+- `/predictions` incrementa `count` y muestra el registro insertado.
+
+### 10.6 Smoke test automatizado de API (opcional)
+
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
 ```
 
-En Linux/macOS/Git Bash puedes usar:
+Linux/macOS/Git Bash:
 
 ```bash
 bash ./mlops/scripts/smoke_api.sh
 ```
 
-5. Detener servicios:
+### 10.7 Reiniciar entrenamiento (si se requiere nueva corrida)
+
+```powershell
+docker compose run --rm trainer
+```
+
+### 10.8 Apagado
+
+Detener servicios manteniendo datos:
 
 ```powershell
 docker compose down
+```
+
+Detener y limpiar volumenes (reset completo local):
+
+```powershell
+docker compose down -v
+```
+
+### 10.9 Troubleshooting corto
+
+Si `mlflow` falla al iniciar con `ModuleNotFoundError: pkg_resources`:
+
+1. Reconstruir sin cache la imagen de `mlflow`.
+2. Volver a levantar stack.
+
+```powershell
+docker compose build --no-cache mlflow
+docker compose up -d
 ```

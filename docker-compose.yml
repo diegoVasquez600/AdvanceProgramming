@@ -1,10 +1,86 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mlplatform
+      POSTGRES_USER: mluser
+      POSTGRES_PASSWORD: mlpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mluser -d mlplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  object-store:
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  object-store-init:
+    image: minio/mc:RELEASE.2025-03-12T17-29-24Z
+    depends_on:
+      object-store:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://object-store:9000 minioadmin minioadmin; do sleep 2; done;
+      mc mb -p local/mlflow || true;
+      mc mb -p local/eva-artifacts || true;
+      exit 0;
+      "
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: mlops/mlflow/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      object-store-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://object-store:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri postgresql+psycopg2://mluser:mlpass@db:5432/mlplatform
+      --default-artifact-root s3://mlflow
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   trainer:
     build:
       context: .
       dockerfile: services/trainer/Dockerfile
+    depends_on:
+      mlflow:
+        condition: service_healthy
     environment:
       EVA_MAX_ROWS: "12000"
+      EVA_MLFLOW_TRACKING_URI: http://mlflow:5000
+      EVA_MLFLOW_EXPERIMENT_NAME: eva_proxy_safe
+      MLFLOW_S3_ENDPOINT_URL: http://object-store:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
     volumes:
       - ./artifacts/models:/app/artifacts/models
       - ./data:/app/data:ro
@@ -16,9 +92,30 @@ services:
     depends_on:
       trainer:
         condition: service_completed_successfully
+      db:
+        condition: service_healthy
     environment:
       EVA_MODELS_DIR: /app/artifacts/models
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: mlplatform
+      DB_USER: mluser
+      DB_PASSWORD: mlpass
     volumes:
       - ./artifacts/models:/app/artifacts/models
     ports:
       - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  minio_data:
