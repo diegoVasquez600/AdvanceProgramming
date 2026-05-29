@@ -188,6 +188,176 @@ body {
   gap: 0.45rem;
 }
 
+.deck-card {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(244, 252, 248, 0.78));
+}
+
+.deck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.deck-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(22, 93, 77, 0.3);
+  background: rgba(24, 123, 103, 0.11);
+  color: #115145;
+  padding: 0.34rem 0.62rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.deck-tabs {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.deck-tab {
+  border: 1px solid rgba(27, 95, 80, 0.28);
+  border-radius: 999px;
+  padding: 0.46rem 0.76rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1d3b40;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.deck-tab.active {
+  background: linear-gradient(120deg, #1b7a66, #2f5fa8);
+  border-color: transparent;
+  color: #f2fffc;
+}
+
+.deck-panel {
+  margin-top: 0.85rem;
+  border: 1px solid rgba(21, 72, 72, 0.14);
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.timeline-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.timeline-item {
+  border: 1px solid rgba(30, 98, 83, 0.2);
+  border-radius: 12px;
+  padding: 0.7rem;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.timeline-item h3 {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 0.97rem;
+}
+
+.timeline-item p {
+  margin: 0;
+  color: #1f3c42;
+  font-size: 0.87rem;
+}
+
+.timeline-item small {
+  margin-top: 0.45rem;
+  display: block;
+  color: var(--muted);
+}
+
+.timeline-minute {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(36, 101, 171, 0.24);
+  background: rgba(36, 101, 171, 0.09);
+  padding: 0.15rem 0.48rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.deck-actions {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.diagram-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.diagram-card {
+  margin: 0;
+  border: 1px solid rgba(21, 71, 74, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.diagram-card img {
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  background: rgba(250, 253, 251, 0.95);
+}
+
+.diagram-card figcaption {
+  padding: 0.62rem 0.72rem 0.74rem;
+}
+
+.diagram-card p {
+  margin: 0.35rem 0 0.6rem;
+  color: #2d4a4d;
+  font-size: 0.84rem;
+}
+
+.repo-tree {
+  margin: 0.65rem 0 0;
+  border-radius: 12px;
+  border: 1px solid rgba(20, 67, 72, 0.25);
+  background: #eff6f2;
+  padding: 0.8rem;
+  color: #17393f;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow: auto;
+}
+
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.doc-card {
+  border: 1px solid rgba(19, 75, 80, 0.2);
+  border-radius: 12px;
+  padding: 0.7rem;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.doc-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.doc-card p {
+  margin: 0.45rem 0 0.7rem;
+  color: #2f4b50;
+  font-size: 0.84rem;
+}
+
 .architecture-flow {
   margin-top: 0.9rem;
   display: flex;
@@ -327,6 +497,13 @@ select {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.84);
   padding: 0.55rem 0.65rem;
+}
+
+.field-readonly {
+  background: rgba(25, 123, 103, 0.1);
+  border-style: dashed;
+  color: #174541;
+  font-weight: 600;
 }
 
 button {
@@ -507,6 +684,12 @@ button:hover {
   .services-grid,
   .form-grid,
   .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-list,
+  .diagram-grid,
+  .doc-grid {
     grid-template-columns: 1fr;
   }
 

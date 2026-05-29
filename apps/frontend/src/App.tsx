@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   UseFormHandleSubmit,
@@ -46,59 +46,310 @@ type Preset = {
   values: Record<string, string>;
 };
 
+type DaneLocation = {
+  departamento: string;
+  c_d_dep: string;
+  municipio: string;
+  c_d_mun: string;
+  periodo: string;
+  a_o: string;
+  grupo_de_cultivo: string;
+};
+
+type PresentationTab = 'pitch' | 'arquitectura' | 'repositorio' | 'documentacion';
+
 const formSchema = z.object({
   model_name: z.string().min(1, 'Select a model'),
   features: z.record(z.string()),
 });
 
-const PERIOD_OPTIONS = ['A', 'B'];
-const DEP_OPTIONS = ['Antioquia', 'Boyaca', 'Cundinamarca', 'Meta', 'Nariño', 'Valle del Cauca'];
-const MUN_OPTIONS_BY_DEP: Record<string, string[]> = {
-  Antioquia: ['Medellin', 'Rionegro', 'Turbo'],
-  Boyaca: ['Tunja', 'Duitama', 'Sogamoso'],
-  Cundinamarca: ['Bogota', 'Soacha', 'Facatativa'],
-  Meta: ['Villavicencio', 'Granada', 'Acacias'],
-  'Nariño': ['Pasto', 'Ipiales', 'Tumaco'],
-  'Valle del Cauca': ['Cali', 'Palmira', 'Tulua'],
-};
-const CULTIVO_OPTIONS = ['Cereales', 'Frutales', 'Leguminosas', 'Tuberculos'];
+const DANE_LOCATION_CATALOG: DaneLocation[] = [
+  {
+    departamento: 'BOYACA',
+    c_d_dep: '15',
+    municipio: 'BUSBANZA',
+    c_d_mun: '15114',
+    periodo: '2006B',
+    a_o: '2006',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'BOYACA',
+    c_d_dep: '15',
+    municipio: 'PAIPA',
+    c_d_mun: '15516',
+    periodo: '2007B',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'CUNDINAMARCA',
+    c_d_dep: '25',
+    municipio: 'SOACHA',
+    c_d_mun: '25754',
+    periodo: '2007A',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'CUNDINAMARCA',
+    c_d_dep: '25',
+    municipio: 'COTA',
+    c_d_mun: '25214',
+    periodo: '2007A',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'NORTE DE SANTANDER',
+    c_d_dep: '54',
+    municipio: 'LOS PATIOS',
+    c_d_mun: '54405',
+    periodo: '2006B',
+    a_o: '2006',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'NORTE DE SANTANDER',
+    c_d_dep: '54',
+    municipio: 'PAMPLONA',
+    c_d_mun: '54518',
+    periodo: '2007A',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'SANTANDER',
+    c_d_dep: '68',
+    municipio: 'LA BELLEZA',
+    c_d_mun: '68377',
+    periodo: '2007A',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+  {
+    departamento: 'CAUCA',
+    c_d_dep: '19',
+    municipio: 'LA SIERRA',
+    c_d_mun: '19392',
+    periodo: '2007B',
+    a_o: '2007',
+    grupo_de_cultivo: 'HORTALIZAS',
+  },
+];
+
+const DANE_BY_DEPARTMENT = DANE_LOCATION_CATALOG.reduce<Record<string, DaneLocation[]>>(
+  (acc, item) => {
+    if (!acc[item.departamento]) {
+      acc[item.departamento] = [];
+    }
+    acc[item.departamento].push(item);
+    return acc;
+  },
+  {}
+);
+
+const DEP_OPTIONS = Object.keys(DANE_BY_DEPARTMENT).sort();
+const PERIOD_OPTIONS = Array.from(new Set(DANE_LOCATION_CATALOG.map((item) => item.periodo))).sort();
+const CULTIVO_OPTIONS = [
+  'HORTALIZAS',
+  'CEREALES',
+  'FRUTALES',
+  'LEGUMINOSAS',
+  'TUBERCULOS',
+  'PLATANO',
+];
 
 const DEMO_PRESETS: Preset[] = [
   {
-    key: 'maiz-andino',
-    title: 'Maiz andino',
-    description: 'Escenario de rendimiento medio-alto en zona andina.',
+    key: 'busbanza-2006b',
+    title: 'BUSBANZA 2006B',
+    description: 'Ejemplo real EVA (Boyaca, hortalizas).',
     values: {
-      c_d_dep: '5',
-      departamento: 'Antioquia',
-      c_d_mun: '1',
-      municipio: 'Medellin',
-      grupo_de_cultivo: 'Cereales',
-      a_o: '2023',
-      periodo: 'A',
-      rea_sembrada_ha: '10.5',
-      rea_cosechada_ha: '10.1',
-      producci_n_t: '43',
-      rendimiento_t_ha: '4.2',
+      c_d_dep: '15',
+      departamento: 'BOYACA',
+      c_d_mun: '15114',
+      municipio: 'BUSBANZA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2006',
+      periodo: '2006B',
+      rea_sembrada_ha: '2',
+      rea_cosechada_ha: '1',
+      producci_n_t: '1',
+      rendimiento_t_ha: '1',
     },
   },
   {
-    key: 'frutal-valle',
-    title: 'Frutal valle',
-    description: 'Escenario de area amplia y cosecha estable.',
+    key: 'soacha-2007a',
+    title: 'SOACHA 2007A',
+    description: 'Ejemplo real EVA (Cundinamarca, alto volumen).',
     values: {
-      c_d_dep: '76',
-      departamento: 'Valle del Cauca',
-      c_d_mun: '1',
-      municipio: 'Cali',
-      grupo_de_cultivo: 'Frutales',
-      a_o: '2024',
-      periodo: 'B',
-      rea_sembrada_ha: '18',
-      rea_cosechada_ha: '17.2',
-      producci_n_t: '68',
-      rendimiento_t_ha: '3.95',
+      c_d_dep: '25',
+      departamento: 'CUNDINAMARCA',
+      c_d_mun: '25754',
+      municipio: 'SOACHA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2007',
+      periodo: '2007A',
+      rea_sembrada_ha: '72',
+      rea_cosechada_ha: '70',
+      producci_n_t: '1260',
+      rendimiento_t_ha: '18',
     },
+  },
+  {
+    key: 'cota-2007a',
+    title: 'COTA 2007A',
+    description: 'Ejemplo real EVA (Cundinamarca, hortalizas).',
+    values: {
+      c_d_dep: '25',
+      departamento: 'CUNDINAMARCA',
+      c_d_mun: '25214',
+      municipio: 'COTA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2007',
+      periodo: '2007A',
+      rea_sembrada_ha: '2',
+      rea_cosechada_ha: '2',
+      producci_n_t: '34',
+      rendimiento_t_ha: '17',
+    },
+  },
+  {
+    key: 'pamplona-2007a',
+    title: 'PAMPLONA 2007A',
+    description: 'Ejemplo real EVA (Norte de Santander).',
+    values: {
+      c_d_dep: '54',
+      departamento: 'NORTE DE SANTANDER',
+      c_d_mun: '54518',
+      municipio: 'PAMPLONA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2007',
+      periodo: '2007A',
+      rea_sembrada_ha: '1',
+      rea_cosechada_ha: '1',
+      producci_n_t: '5',
+      rendimiento_t_ha: '10',
+    },
+  },
+  {
+    key: 'la-belleza-2007a',
+    title: 'LA BELLEZA 2007A',
+    description: 'Ejemplo real EVA (Santander).',
+    values: {
+      c_d_dep: '68',
+      departamento: 'SANTANDER',
+      c_d_mun: '68377',
+      municipio: 'LA BELLEZA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2007',
+      periodo: '2007A',
+      rea_sembrada_ha: '1',
+      rea_cosechada_ha: '1',
+      producci_n_t: '6',
+      rendimiento_t_ha: '6',
+    },
+  },
+  {
+    key: 'la-sierra-2007b',
+    title: 'LA SIERRA 2007B',
+    description: 'Ejemplo real EVA (Cauca).',
+    values: {
+      c_d_dep: '19',
+      departamento: 'CAUCA',
+      c_d_mun: '19392',
+      municipio: 'LA SIERRA',
+      grupo_de_cultivo: 'HORTALIZAS',
+      a_o: '2007',
+      periodo: '2007B',
+      rea_sembrada_ha: '2',
+      rea_cosechada_ha: '2',
+      producci_n_t: '10',
+      rendimiento_t_ha: '5',
+    },
+  },
+];
+
+const PRESENTATION_PITCH = [
+  {
+    minute: '00-02',
+    title: 'Contexto y objetivo',
+    message: 'Que problema resuelve EVA y por que se modela ciclo de cultivo con variables proxy bloqueadas.',
+    evidence: 'Muestra tarjeta de variables restringidas y diccionario EVA.',
+  },
+  {
+    minute: '02-05',
+    title: 'Arquitectura y despliegue',
+    message: 'Explica microservicios en Docker Compose y trazabilidad end-to-end.',
+    evidence: 'Usa diagrama de arquitectura y flujo Dataset -> API -> Feedback.',
+  },
+  {
+    minute: '05-08',
+    title: 'Entrenamiento y modelo ganador',
+    message: 'Describe comparativa RF vs Logistic Regression y criterio por F1 macro.',
+    evidence: 'Grafico de barras + tarjeta de modelo recomendado.',
+  },
+  {
+    minute: '08-12',
+    title: 'Demo operativa',
+    message: 'Ejecuta prediccion con presets EVA, luego valida historial y feedback.',
+    evidence: 'Navega a Prediccion y luego Servicios/API para gobernanza.',
+  },
+  {
+    minute: '12-15',
+    title: 'Gobernanza y cierre',
+    message: 'Cierra con metricas observadas, export CSV y estado de servicios.',
+    evidence: 'Abre endpoints de metrics/export y deja evidencias de reproducibilidad.',
+  },
+];
+
+const REPO_STRUCTURE_LINES = [
+  'AdvanceProgramming/',
+  '├─ data/',
+  '│  └─ Evaluaciones_Agropecuarias_Municipales_EVA.csv',
+  '├─ services/',
+  '│  ├─ api/ (FastAPI + ReDoc + governance endpoints)',
+  '│  └─ trainer/ (entrenamiento y artefactos)',
+  '├─ apps/',
+  '│  └─ frontend/ (React dashboard interactivo)',
+  '├─ mlops/',
+  '│  ├─ migrations/ (esquema SQL governance)',
+  '│  └─ scripts/ (deploy_and_validate + smoke_api)',
+  '├─ artifacts/models/ (modelos versionados)',
+  '└─ docs/ (architecture.md + runbook.md)',
+];
+
+const ARCHITECTURE_DIAGRAMS = [
+  {
+    title: 'Arquitectura de Base de Datos',
+    src: 'http://localhost:8000/static/diagrams/db-governance-schema.svg',
+    description:
+      'Relaciona predicciones, registro de modelos y feedback para trazabilidad y evaluacion observada.',
+  },
+  {
+    title: 'Diagrama de Clases API',
+    src: 'http://localhost:8000/static/diagrams/api-class-governance-diagram.svg',
+    description:
+      'Expone contratos, schemas y endpoints versionados usados por frontend, docs y scripts operativos.',
+  },
+];
+
+const DOCUMENTATION_LINKS = [
+  {
+    title: 'Runbook de operacion',
+    href: 'http://localhost:8000/redoc',
+    description: 'Secuencia de despliegue, endpoints y evidencia tecnica para clase.',
+  },
+  {
+    title: 'Swagger API v1',
+    href: 'http://localhost:8000/docs',
+    description: 'Contrato ejecutable para demostrar request/response en vivo.',
+  },
+  {
+    title: 'MLflow Tracking',
+    href: 'http://localhost:5000',
+    description: 'Corridas, metricas y artefactos de entrenamiento con trazabilidad temporal.',
   },
 ];
 
@@ -107,7 +358,8 @@ function castFeatureValue(field: FeatureField, value: string): unknown {
     return null;
   }
   if (field.type === 'number') {
-    const num = Number(value);
+    const normalized = value.replace(/,/g, '').trim();
+    const num = Number(normalized);
     return Number.isNaN(num) ? null : num;
   }
   return value;
@@ -405,6 +657,8 @@ type PresentationPageProps = {
 };
 
 function PresentationPage(props: PresentationPageProps) {
+  const [activeTab, setActiveTab] = useState<PresentationTab>('pitch');
+
   const bestModel = useMemo(() => {
     if (!props.metricsChartData.length) {
       return null;
@@ -462,38 +716,132 @@ function PresentationPage(props: PresentationPageProps) {
         </div>
       </article>
 
-      <article className="card col-4">
-        <h2>Narrativa sugerida (15 min)</h2>
-        <ol className="story-list">
-          <li>Problema EVA y por que se excluyen columnas proxy.</li>
-          <li>Arquitectura desacoplada en Docker Compose.</li>
-          <li>Entrenamiento, artefactos y trazabilidad en MLflow.</li>
-          <li>Prediccion guiada + feedback de ground truth.</li>
-          <li>Cierre con metricas observadas y export CSV.</li>
-        </ol>
-        <Link className="text-link" to="/prediccion">
-          Ir a prediccion en vivo
-        </Link>
-      </article>
-
-      <article className="card col-12">
-        <h2>Arquitectura del sistema (visual)</h2>
-        <p className="stat-label">
-          Flujo: datos EVA - entrenamiento - modelos - API - frontend - feedback - metricas observadas.
-        </p>
-        <div className="architecture-flow">
-          <div className="flow-node">Dataset EVA</div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-node">Trainer + MLflow</div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-node">Artifacts (MinIO/volumen)</div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-node">API FastAPI</div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-node">Frontend React</div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-node">Feedback + Governance</div>
+      <article className="card col-12 deck-card">
+        <div className="deck-header">
+          <h2>Presentacion Ejecutiva Interactiva</h2>
+          <span className="deck-chip">Modo clase: 15 minutos</span>
         </div>
+        <p className="stat-label">
+          Esta seccion funciona como una presentacion tipo PowerPoint, pero conectada al sistema real.
+        </p>
+
+        <div className="deck-tabs">
+          <button
+            type="button"
+            className={`deck-tab ${activeTab === 'pitch' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pitch')}
+          >
+            Guion 15 min
+          </button>
+          <button
+            type="button"
+            className={`deck-tab ${activeTab === 'arquitectura' ? 'active' : ''}`}
+            onClick={() => setActiveTab('arquitectura')}
+          >
+            Arquitectura
+          </button>
+          <button
+            type="button"
+            className={`deck-tab ${activeTab === 'repositorio' ? 'active' : ''}`}
+            onClick={() => setActiveTab('repositorio')}
+          >
+            Estructura repo
+          </button>
+          <button
+            type="button"
+            className={`deck-tab ${activeTab === 'documentacion' ? 'active' : ''}`}
+            onClick={() => setActiveTab('documentacion')}
+          >
+            Docs y evidencia
+          </button>
+        </div>
+
+        {activeTab === 'pitch' && (
+          <div className="deck-panel fade-in">
+            <div className="timeline-list">
+              {PRESENTATION_PITCH.map((step) => (
+                <article key={step.minute} className="timeline-item">
+                  <div className="timeline-minute">{step.minute}</div>
+                  <h3>{step.title}</h3>
+                  <p>{step.message}</p>
+                  <small>{step.evidence}</small>
+                </article>
+              ))}
+            </div>
+            <div className="deck-actions">
+              <Link className="btn-link" to="/prediccion">
+                Ir a demo de prediccion
+              </Link>
+              <Link className="btn-link" to="/servicios">
+                Ir a servicios y gobernanza
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'arquitectura' && (
+          <div className="deck-panel fade-in">
+            <p className="stat-label">
+              Flujo operacional: dataset EVA → trainer → artefactos → API → frontend → feedback → metricas observadas.
+            </p>
+            <div className="architecture-flow">
+              <div className="flow-node">Dataset EVA</div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-node">Trainer + MLflow</div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-node">Artifacts (MinIO/volumen)</div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-node">API FastAPI</div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-node">Frontend React</div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-node">Feedback + Governance</div>
+            </div>
+
+            <div className="diagram-grid">
+              {ARCHITECTURE_DIAGRAMS.map((diagram) => (
+                <figure key={diagram.title} className="diagram-card">
+                  <img src={diagram.src} alt={diagram.title} loading="lazy" />
+                  <figcaption>
+                    <strong>{diagram.title}</strong>
+                    <p>{diagram.description}</p>
+                    <a className="text-link" href={diagram.src} target="_blank" rel="noreferrer">
+                      Abrir diagrama completo
+                    </a>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'repositorio' && (
+          <div className="deck-panel fade-in">
+            <p className="stat-label">
+              Vista de carpetas clave para explicar organizacion de codigo, datos, modelos y operaciones.
+            </p>
+            <pre className="repo-tree">{REPO_STRUCTURE_LINES.join('\n')}</pre>
+          </div>
+        )}
+
+        {activeTab === 'documentacion' && (
+          <div className="deck-panel fade-in">
+            <div className="doc-grid">
+              {DOCUMENTATION_LINKS.map((doc) => (
+                <article key={doc.title} className="doc-card">
+                  <h3>{doc.title}</h3>
+                  <p>{doc.description}</p>
+                  <a className="btn-link" href={doc.href} target="_blank" rel="noreferrer">
+                    Abrir recurso
+                  </a>
+                </article>
+              ))}
+            </div>
+            <p className="label-help">
+              Recomendacion para presentar: abrir ReDoc y explicar primero el contrato; luego mostrar MLflow como evidencia de entrenamiento.
+            </p>
+          </div>
+        )}
       </article>
 
       <article className="card col-12">
@@ -565,7 +913,8 @@ function PredictionPage(props: PredictionPageProps) {
     []
   );
   const selectedDep = props.watchedFeatures.departamento || '';
-  const municipioOptions = MUN_OPTIONS_BY_DEP[selectedDep] ?? [];
+  const municipalities = DANE_BY_DEPARTMENT[selectedDep] ?? [];
+  const municipioOptions = municipalities.map((item) => item.municipio);
 
   const coreFields = ['c_d_dep', 'departamento', 'c_d_mun', 'municipio', 'a_o', 'periodo'];
   const productionFields = ['grupo_de_cultivo', 'rea_sembrada_ha', 'rea_cosechada_ha', 'producci_n_t', 'rendimiento_t_ha'];
@@ -578,10 +927,45 @@ function PredictionPage(props: PredictionPageProps) {
     ),
   };
 
+  const handleDepartamentoChange = (departamento: string) => {
+    const firstLocation = DANE_BY_DEPARTMENT[departamento]?.[0];
+    props.setValue('features.departamento', departamento, { shouldDirty: true });
+    props.setValue('features.c_d_dep', firstLocation?.c_d_dep ?? '', { shouldDirty: true });
+    props.setValue('features.municipio', '', { shouldDirty: true });
+    props.setValue('features.c_d_mun', '', { shouldDirty: true });
+  };
+
+  const handleMunicipioChange = (municipio: string) => {
+    props.setValue('features.municipio', municipio, { shouldDirty: true });
+    const selectedLocation = municipalities.find((item) => item.municipio === municipio);
+    if (!selectedLocation) {
+      return;
+    }
+
+    props.setValue('features.c_d_dep', selectedLocation.c_d_dep, { shouldDirty: true });
+    props.setValue('features.c_d_mun', selectedLocation.c_d_mun, { shouldDirty: true });
+
+    if (!(props.watchedFeatures.periodo ?? '').trim()) {
+      props.setValue('features.periodo', selectedLocation.periodo, { shouldDirty: true });
+    }
+    if (!(props.watchedFeatures.a_o ?? '').trim()) {
+      props.setValue('features.a_o', selectedLocation.a_o, { shouldDirty: true });
+    }
+    if (!(props.watchedFeatures.grupo_de_cultivo ?? '').trim()) {
+      props.setValue('features.grupo_de_cultivo', selectedLocation.grupo_de_cultivo, {
+        shouldDirty: true,
+      });
+    }
+  };
+
   const renderFieldInput = (field: FeatureField) => {
     if (field.name === 'departamento') {
       return (
-        <select {...props.register(`features.${field.name}`)}>
+        <select
+          {...props.register(`features.${field.name}`, {
+            onChange: (event) => handleDepartamentoChange(event.target.value),
+          })}
+        >
           <option value="">Selecciona departamento</option>
           {DEP_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -594,7 +978,12 @@ function PredictionPage(props: PredictionPageProps) {
 
     if (field.name === 'municipio') {
       return (
-        <select {...props.register(`features.${field.name}`)}>
+        <select
+          {...props.register(`features.${field.name}`, {
+            onChange: (event) => handleMunicipioChange(event.target.value),
+          })}
+          disabled={!selectedDep}
+        >
           <option value="">Selecciona municipio</option>
           {municipioOptions.map((option) => (
             <option key={option} value={option}>
@@ -606,10 +995,14 @@ function PredictionPage(props: PredictionPageProps) {
     }
 
     if (field.name === 'periodo') {
+      const currentValue = props.watchedFeatures.periodo ?? '';
+      const periodOptions = currentValue && !PERIOD_OPTIONS.includes(currentValue)
+        ? [currentValue, ...PERIOD_OPTIONS]
+        : PERIOD_OPTIONS;
       return (
         <select {...props.register(`features.${field.name}`)}>
           <option value="">Selecciona periodo</option>
-          {PERIOD_OPTIONS.map((option) => (
+          {periodOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -619,15 +1012,31 @@ function PredictionPage(props: PredictionPageProps) {
     }
 
     if (field.name === 'grupo_de_cultivo') {
+      const currentValue = props.watchedFeatures.grupo_de_cultivo ?? '';
+      const cultivoOptions = currentValue && !CULTIVO_OPTIONS.includes(currentValue)
+        ? [currentValue, ...CULTIVO_OPTIONS]
+        : CULTIVO_OPTIONS;
       return (
         <select {...props.register(`features.${field.name}`)}>
           <option value="">Selecciona grupo de cultivo</option>
-          {CULTIVO_OPTIONS.map((option) => (
+          {cultivoOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
           ))}
         </select>
+      );
+    }
+
+    if (field.name === 'c_d_dep' || field.name === 'c_d_mun') {
+      return (
+        <input
+          type="text"
+          readOnly
+          className="field-readonly"
+          placeholder="Inferido automaticamente por DANE"
+          {...props.register(`features.${field.name}`)}
+        />
       );
     }
 
@@ -659,7 +1068,7 @@ function PredictionPage(props: PredictionPageProps) {
       <article className="card col-7">
         <h2>Prediccion guiada para demostracion</h2>
         <p className="stat-label">
-          Usa presets para clase o completa manualmente los campos.
+          Usa presets del dataset EVA y desprendibles DANE para reducir digitacion manual.
         </p>
         <div className="preset-row">
           {DEMO_PRESETS.map((preset) => (
@@ -674,6 +1083,9 @@ function PredictionPage(props: PredictionPageProps) {
             </button>
           ))}
         </div>
+        <p className="label-help">
+          Al seleccionar departamento y municipio, los codigos DANE se infieren automaticamente.
+        </p>
         <form onSubmit={props.handleSubmit(props.onSubmit)}>
           <div className="form-grid">
             <label>
