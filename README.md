@@ -4,8 +4,11 @@ Este repositorio contiene dos notebooks desarrollados para la asignatura **Progr
 
 ## Contenido del repositorio
 
-- `Exploratory_Data_Analysis_Colombia_EVA.ipynb`: análisis exploratorio, limpieza, estandarización y preparación de datos del dataset EVA para modelado.
-- `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`: desarrollo del Taller 1 con ejercicios de vectores, transformaciones lineales y PCA.
+- `notebooks/exploratory/Exploratory_Data_Analysis_Colombia_EVA.ipynb`: análisis exploratorio, limpieza, estandarización y preparación de datos del dataset EVA para modelado.
+- `notebooks/archived/Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`: desarrollo del Taller 1 con ejercicios de vectores, transformaciones lineales y PCA.
+- `notebooks/modeling/Modelado_Clasificacion_Multiclase_Colombia_EVA.ipynb`: modelado base de clasificación multiclase.
+- `notebooks/modeling/Modelado_Clasificacion_Multiclase_Colombia_EVA_PROXY_SAFE.ipynb`: modelado proxy-safe alineado con la API.
+- `notebooks/evidences/Informe_Evidencias_Proxy_Safe.ipynb`: evidencias y resultados del enfoque proxy-safe.
 
 El proyecto está configurado para:
 
@@ -58,7 +61,7 @@ python -c "import pandas, numpy, matplotlib, seaborn, scipy, sodapy, dotenv; pri
 
 Archivo:
 
-- `Exploratory_Data_Analysis_Colombia_EVA.ipynb`
+- `notebooks/exploratory/Exploratory_Data_Analysis_Colombia_EVA.ipynb`
 
 Este notebook usa como fuente principal el CSV completo ubicado en `data/Evaluaciones_Agropecuarias_Municipales_EVA.csv` y, si no está disponible, usa la API de Datos Abiertos como respaldo.
 
@@ -66,7 +69,7 @@ Este notebook usa como fuente principal el CSV completo ubicado en `data/Evaluac
 
 Archivo:
 
-- `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`
+- `notebooks/archived/Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`
 
 Este notebook no depende de la API de Datos Abiertos. Contiene ejercicios académicos de álgebra lineal aplicados a machine learning, incluyendo similitud coseno, transformaciones lineales sobre imágenes y análisis PCA.
 
@@ -136,8 +139,16 @@ Verifica que exista exactamente esta ruta relativa:
 AdvanceProgramming/
 |-- data/
 |   `-- Evaluaciones_Agropecuarias_Municipales_EVA.csv
-|-- Exploratory_Data_Analysis_Colombia_EVA.ipynb
-|-- Taller1_ProgramacionAvanzada_Diego_Rios.ipynb
+|-- notebooks/
+|   |-- exploratory/
+|   |   `-- Exploratory_Data_Analysis_Colombia_EVA.ipynb
+|   |-- modeling/
+|   |   |-- Modelado_Clasificacion_Multiclase_Colombia_EVA.ipynb
+|   |   `-- Modelado_Clasificacion_Multiclase_Colombia_EVA_PROXY_SAFE.ipynb
+|   |-- evidences/
+|   |   `-- Informe_Evidencias_Proxy_Safe.ipynb
+|   `-- archived/
+|       `-- Taller1_ProgramacionAvanzada_Diego_Rios.ipynb
 |-- requirements.txt
 |-- README.md
 `-- .gitignore
@@ -145,7 +156,7 @@ AdvanceProgramming/
 
 ## 9. Recomendación de uso
 
-Si el objetivo es revisar el trabajo de análisis de datos, comienza por `Exploratory_Data_Analysis_Colombia_EVA.ipynb`. Si el objetivo es revisar el desarrollo del taller académico de álgebra lineal, abre `Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`.
+Si el objetivo es revisar el trabajo de análisis de datos, comienza por `notebooks/exploratory/Exploratory_Data_Analysis_Colombia_EVA.ipynb`. Si el objetivo es revisar el desarrollo del taller académico de álgebra lineal, abre `notebooks/archived/Taller1_ProgramacionAvanzada_Diego_Rios.ipynb`.
 
 ## 10. Runbook de demo estable (Docker full-stack)
 
