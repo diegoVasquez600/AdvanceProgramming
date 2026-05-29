@@ -2,6 +2,19 @@
 
 Este repositorio contiene dos notebooks desarrollados para la asignatura **Programación Avanzada**. El primero corresponde a un análisis exploratorio del dataset **Evaluaciones Agropecuarias Municipales (EVA)** de Colombia y el segundo resuelve el **Taller 1 de Álgebra Lineal para Machine Learning**.
 
+> **🐳 Ahora con deployment en Docker Hub público** 
+> 
+> La plataforma EVA completa está disponible como imágenes Docker en [diegovasquez600/eva-*](https://hub.docker.com/u/diegovasquez600)
+> 
+> ⚡ **Quick Start**: 
+> ```bash
+> git clone https://github.com/diegovasquez600/AdvanceProgramming.git
+> cd AdvanceProgramming && cp .env.example .env
+> docker compose -f docker-compose.prod.yml up -d
+> ```
+> 
+> Ver [QUICKSTART.md](./QUICKSTART.md) o [DOCKER_HUB_SETUP.md](./DOCKER_HUB_SETUP.md) para más detalles.
+
 ## Contenido del repositorio
 
 - `notebooks/exploratory/Exploratory_Data_Analysis_Colombia_EVA.ipynb`: análisis exploratorio, limpieza, estandarización y preparación de datos del dataset EVA para modelado.
