@@ -75,3 +75,20 @@ export type PredictionsResponse = {
   count: number;
   items: PredictionItem[];
 };
+
+export type PipelineStatusResponse = {
+  api_version: string;
+  tracking_uri: string;
+  experiment_name: string;
+  models_dir: string;
+  loaded_models: string[];
+  available_artifact_files: string[];
+  last_artifacts_reload_at: string;
+};
+
+export type PipelineReloadResponse = {
+  status: string;
+  message: string;
+  reloaded_models: string[];
+  reloaded_at: string;
+};

@@ -62,6 +62,12 @@ assert_contains "${info}" '"default_model"' "GET /api/v1/model/info should inclu
 schema="$(request GET "${API_PREFIX}/schema/input" "" 200)"
 assert_contains "${schema}" '"required_features"' "GET /api/v1/schema/input should include required_features"
 
+pipeline_status="$(request GET "${API_PREFIX}/pipeline/status" "" 200)"
+assert_contains "${pipeline_status}" '"loaded_models"' "GET /api/v1/pipeline/status should include loaded_models"
+
+pipeline_reload="$(request POST "${API_PREFIX}/pipeline/reload-artifacts" "" 200)"
+assert_contains "${pipeline_reload}" '"status":"ok"' "POST /api/v1/pipeline/reload-artifacts should return ok"
+
 docs="$(request GET /docs "" 200)"
 assert_contains "${docs}" 'Swagger UI' "GET /docs should load swagger"
 

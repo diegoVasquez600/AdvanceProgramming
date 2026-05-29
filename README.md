@@ -204,6 +204,7 @@ Estado esperado:
 ```powershell
 Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/health | Select-Object -ExpandProperty Content
 Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/models | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/pipeline/status | Select-Object -ExpandProperty Content
 Invoke-WebRequest -UseBasicParsing http://localhost:3000 | Select-Object -ExpandProperty StatusCode
 Invoke-WebRequest -UseBasicParsing http://localhost:5000 | Select-Object -ExpandProperty StatusCode
 Invoke-WebRequest -UseBasicParsing http://localhost:8000/docs | Select-Object -ExpandProperty StatusCode
@@ -214,10 +215,13 @@ Resultado esperado minimo:
 
 - `/api/v1/health` retorna `{"status":"ok"}`
 - `/api/v1/models` lista `random_forest` y `logistic_regression`
+- `/api/v1/pipeline/status` muestra estado de artefactos cargados
 - Frontend responde `200`
 - MLflow responde `200`
 - Swagger UI (`/docs`) responde `200`
 - ReDoc (`/redoc`) responde `200`
+
+Nota: ReDoc se sirve con bundle local dentro del contenedor `api` para evitar dependencia de CDN en tiempo de ejecucion.
 
 ### 10.5 Prueba E2E de prediccion + persistencia
 
@@ -241,6 +245,7 @@ $payload = @{
 
 Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/api/v1/predict -ContentType 'application/json' -Body $payload | Select-Object -ExpandProperty Content
 Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/predictions | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://localhost:8000/api/v1/pipeline/reload-artifacts | Select-Object -ExpandProperty Content
 ```
 
 Resultado esperado:

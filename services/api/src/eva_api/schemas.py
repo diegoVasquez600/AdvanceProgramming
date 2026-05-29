@@ -109,3 +109,20 @@ class PredictionsResponse(ApiBaseModel):
 
 class HealthResponse(ApiBaseModel):
     status: str
+
+
+class PipelineStatusResponse(ApiBaseModel):
+    api_version: str
+    tracking_uri: str
+    experiment_name: str
+    models_dir: str
+    loaded_models: list[str]
+    available_artifact_files: list[str]
+    last_artifacts_reload_at: str
+
+
+class PipelineReloadResponse(ApiBaseModel):
+    status: str
+    message: str
+    reloaded_models: list[str]
+    reloaded_at: str

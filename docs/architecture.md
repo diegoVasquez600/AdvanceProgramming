@@ -26,8 +26,10 @@ Servicios en Docker Compose:
 2. `GET /api/v1/models`
 3. `GET /api/v1/model/info`
 4. `GET /api/v1/schema/input`
-5. `POST /api/v1/predict`
-6. `GET /api/v1/predictions`
+5. `GET /api/v1/pipeline/status`
+6. `POST /api/v1/pipeline/reload-artifacts`
+7. `POST /api/v1/predict`
+8. `GET /api/v1/predictions`
 
 ## Persistencia
 

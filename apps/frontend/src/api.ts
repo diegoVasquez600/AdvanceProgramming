@@ -3,6 +3,8 @@ import type {
   InputSchemaResponse,
   ModelMetadataResponse,
   ModelsResponse,
+  PipelineReloadResponse,
+  PipelineStatusResponse,
   PredictRequest,
   PredictResponse,
   PredictionsResponse,
@@ -38,6 +40,11 @@ export const api = {
   models: () => http<ModelsResponse>('/models'),
   metadata: () => http<ModelMetadataResponse>('/model/info'),
   inputSchema: () => http<InputSchemaResponse>('/schema/input'),
+  pipelineStatus: () => http<PipelineStatusResponse>('/pipeline/status'),
+  reloadArtifacts: () =>
+    http<PipelineReloadResponse>('/pipeline/reload-artifacts', {
+      method: 'POST',
+    }),
   predictions: () => http<PredictionsResponse>('/predictions'),
   predict: (payload: PredictRequest) =>
     http<PredictResponse>('/predict', {

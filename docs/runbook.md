@@ -44,6 +44,9 @@ bash ./mlops/scripts/smoke_api.sh
 
 ```powershell
 docker compose run --rm trainer
+
+# Recargar artefactos en API despues del entrenamiento
+Invoke-WebRequest -UseBasicParsing -Method POST http://localhost:8000/api/v1/pipeline/reload-artifacts | Select-Object -ExpandProperty Content
 ```
 
 ## 6. URLs de demo
@@ -57,7 +60,13 @@ docker compose run --rm trainer
 7. MLflow: `http://localhost:5000`
 8. MinIO Console: `http://localhost:9001`
 
-## 7. Apagado
+## 7. Verificacion de pipeline desde API
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/api/v1/pipeline/status | Select-Object -ExpandProperty Content
+```
+
+## 8. Apagado
 
 ```powershell
 docker compose down

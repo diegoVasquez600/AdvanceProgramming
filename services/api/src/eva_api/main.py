@@ -9,6 +9,9 @@ import joblib
 import pandas as pd
 import psycopg2
 from fastapi import FastAPI, HTTPException
+from fastapi.openapi.docs import get_redoc_html
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .schemas import (
     HealthResponse,
@@ -16,6 +19,8 @@ from .schemas import (
     ModelArtifactInfo,
     ModelMetadataResponse,
     ModelsResponse,
+    PipelineReloadResponse,
+    PipelineStatusResponse,
     PredictRequest,
     PredictionItem,
     PredictionsResponse,
@@ -48,7 +53,7 @@ def read_optional_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def infer_feature_schema() -> dict[str, Any]:
+def infer_feature_schema(current_schema: dict[str, Any]) -> dict[str, Any]:
     numeric_hints = {
         "c_d_dep",
         "c_d_mun",
@@ -59,7 +64,7 @@ def infer_feature_schema() -> dict[str, Any]:
         "rendimiento_t_ha",
     }
     features = []
-    for col in schema["allowed_features"]:
+    for col in current_schema["allowed_features"]:
         kind = "number" if col in numeric_hints else "string"
         example = 1 if kind == "number" else "valor"
         features.append(
@@ -72,29 +77,63 @@ def infer_feature_schema() -> dict[str, Any]:
             }
         )
     return {
-        "target_column": schema["target_column"],
-        "required_features": schema["allowed_features"],
+        "target_column": current_schema["target_column"],
+        "required_features": current_schema["allowed_features"],
         "features": features,
     }
 
 
 models_dir = resolve_models_dir()
 
-schema = json.loads((models_dir / "schema.json").read_text(encoding="utf-8"))
-metrics = json.loads((models_dir / "metrics.json").read_text(encoding="utf-8"))
-feature_schema = (
-    read_optional_json(models_dir / "feature_schema.json") or infer_feature_schema()
-)
-model_metadata = read_optional_json(models_dir / "model_metadata.json")
+tracking_uri = os.getenv("EVA_MLFLOW_TRACKING_URI", "http://mlflow:5000")
+experiment_name = os.getenv("EVA_MLFLOW_EXPERIMENT_NAME", "eva_proxy_safe")
 
+schema: dict[str, Any] = {}
+metrics: dict[str, Any] = {}
+feature_schema: dict[str, Any] = {}
+model_metadata: dict[str, Any] = {}
 loaded_models: dict[str, Any] = {}
-for model_name in schema["model_options"]:
-    model_path = models_dir / f"{model_name}.joblib"
-    if model_path.exists():
-        loaded_models[model_name] = joblib.load(model_path)
+last_artifacts_reload_at = "unknown"
 
-if not loaded_models:
-    raise RuntimeError("No trained models found in artifacts/models")
+
+def load_artifacts() -> list[str]:
+    global schema
+    global metrics
+    global feature_schema
+    global model_metadata
+    global loaded_models
+    global last_artifacts_reload_at
+
+    current_schema = json.loads(
+        (models_dir / "schema.json").read_text(encoding="utf-8")
+    )
+    current_metrics = json.loads(
+        (models_dir / "metrics.json").read_text(encoding="utf-8")
+    )
+    current_feature_schema = read_optional_json(
+        models_dir / "feature_schema.json"
+    ) or infer_feature_schema(current_schema)
+    current_model_metadata = read_optional_json(models_dir / "model_metadata.json")
+
+    current_models: dict[str, Any] = {}
+    for model_name in current_schema["model_options"]:
+        model_path = models_dir / f"{model_name}.joblib"
+        if model_path.exists():
+            current_models[model_name] = joblib.load(model_path)
+
+    if not current_models:
+        raise RuntimeError("No trained models found in artifacts/models")
+
+    schema = current_schema
+    metrics = current_metrics
+    feature_schema = current_feature_schema
+    model_metadata = current_model_metadata
+    loaded_models = current_models
+    last_artifacts_reload_at = datetime.now(timezone.utc).isoformat()
+    return list(current_models.keys())
+
+
+load_artifacts()
 
 tags_metadata = [
     {"name": "health", "description": "Service liveness and readiness checks."},
@@ -107,6 +146,10 @@ tags_metadata = [
         "name": "predictions",
         "description": "Inference and traceable prediction history persisted in PostgreSQL.",
     },
+    {
+        "name": "pipeline",
+        "description": "Operational helpers to inspect and refresh pipeline artifacts.",
+    },
 ]
 
 app = FastAPI(
@@ -117,7 +160,11 @@ app = FastAPI(
         "Primary endpoints follow /api/v1. Legacy non-versioned aliases are kept for compatibility."
     ),
     openapi_tags=tags_metadata,
+    redoc_url=None,
 )
+
+docs_static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static-docs", StaticFiles(directory=str(docs_static_dir)), name="static-docs")
 
 
 def get_db_dsn() -> str:
@@ -276,6 +323,22 @@ def get_metadata_response() -> ModelMetadataResponse:
     )
 
 
+def get_pipeline_status_response() -> PipelineStatusResponse:
+    files = sorted(
+        [p.name for p in models_dir.glob("*.json")]
+        + [p.name for p in models_dir.glob("*.joblib")]
+    )
+    return PipelineStatusResponse(
+        api_version=API_VERSION,
+        tracking_uri=tracking_uri,
+        experiment_name=experiment_name,
+        models_dir=str(models_dir),
+        loaded_models=sorted(list(loaded_models.keys())),
+        available_artifact_files=files,
+        last_artifacts_reload_at=last_artifacts_reload_at,
+    )
+
+
 @app.on_event("startup")
 def startup_event() -> None:
     # DB can come up after the API container; retry briefly before failing.
@@ -288,6 +351,42 @@ def startup_event() -> None:
             last_error = exc
             time.sleep(1)
     raise RuntimeError(f"Could not initialize DB table: {last_error}")
+
+
+@app.get("/redoc", include_in_schema=False)
+def redoc_html() -> HTMLResponse:
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} - ReDoc",
+        redoc_js_url="/static-docs/redoc.standalone.js",
+        with_google_fonts=False,
+    )
+
+
+@app.get(
+    "/api/v1/pipeline/status",
+    response_model=PipelineStatusResponse,
+    tags=["pipeline"],
+    summary="Pipeline runtime status",
+)
+def pipeline_status() -> PipelineStatusResponse:
+    return get_pipeline_status_response()
+
+
+@app.post(
+    "/api/v1/pipeline/reload-artifacts",
+    response_model=PipelineReloadResponse,
+    tags=["pipeline"],
+    summary="Reload model artifacts after retraining",
+)
+def pipeline_reload_artifacts() -> PipelineReloadResponse:
+    reloaded = load_artifacts()
+    return PipelineReloadResponse(
+        status="ok",
+        message="Artifacts reloaded from models directory",
+        reloaded_models=reloaded,
+        reloaded_at=last_artifacts_reload_at,
+    )
 
 
 @app.get(

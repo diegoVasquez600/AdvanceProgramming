@@ -20,6 +20,8 @@ import { EVA_COLUMNS } from './evaColumns';
 import type {
   FeatureField,
   ModelMetadataResponse,
+  PipelineReloadResponse,
+  PipelineStatusResponse,
   PredictRequest,
   PredictResponse,
 } from './types';
@@ -67,6 +69,10 @@ function AppShell() {
     queryKey: ['predictions'],
     queryFn: api.predictions,
   });
+  const pipelineStatusQuery = useQuery({
+    queryKey: ['pipelineStatus'],
+    queryFn: api.pipelineStatus,
+  });
 
   const modelOptions = modelsQuery.data?.available_models ?? [];
   const metrics = modelsQuery.data?.metrics ?? {};
@@ -93,6 +99,16 @@ function AppShell() {
     mutationFn: (payload: PredictRequest) => api.predict(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['predictions'] });
+    },
+  });
+
+  const reloadArtifactsMutation = useMutation({
+    mutationFn: api.reloadArtifacts,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      queryClient.invalidateQueries({ queryKey: ['metadata'] });
+      queryClient.invalidateQueries({ queryKey: ['inputSchema'] });
+      queryClient.invalidateQueries({ queryKey: ['pipelineStatus'] });
     },
   });
 
@@ -239,7 +255,17 @@ function AppShell() {
           />
           <Route
             path="/servicios"
-            element={<ServicesPage cards={serviceCards} />}
+            element={
+              <ServicesPage
+                cards={serviceCards}
+                pipelineStatus={pipelineStatusQuery.data}
+                pipelineError={pipelineStatusQuery.error ? String(pipelineStatusQuery.error) : null}
+                reloadResult={reloadArtifactsMutation.data}
+                reloadPending={reloadArtifactsMutation.isPending}
+                reloadError={reloadArtifactsMutation.error ? String(reloadArtifactsMutation.error) : null}
+                onReloadArtifacts={() => reloadArtifactsMutation.mutate()}
+              />
+            }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -484,6 +510,12 @@ type ServicesPageProps = {
     status: string;
     external: boolean;
   }>;
+  pipelineStatus: PipelineStatusResponse | undefined;
+  pipelineError: string | null;
+  reloadResult: PipelineReloadResponse | undefined;
+  reloadPending: boolean;
+  reloadError: string | null;
+  onReloadArtifacts: () => void;
 };
 
 function ServicesPage(props: ServicesPageProps) {
@@ -515,6 +547,8 @@ function ServicesPage(props: ServicesPageProps) {
           <li>GET /api/v1/models</li>
           <li>GET /api/v1/model/info</li>
           <li>GET /api/v1/schema/input</li>
+          <li>GET /api/v1/pipeline/status</li>
+          <li>POST /api/v1/pipeline/reload-artifacts</li>
           <li>POST /api/v1/predict</li>
           <li>GET /api/v1/predictions</li>
         </ul>
@@ -533,6 +567,24 @@ function ServicesPage(props: ServicesPageProps) {
             ReDoc
           </a>
         </div>
+      </article>
+
+      <article className="card col-12">
+        <h2>Interaccion con pipeline</h2>
+        <p className="stat-label">
+          Flujo recomendado: ejecutar <strong>docker compose run --rm trainer</strong> y luego recargar artefactos desde este panel.
+        </p>
+        <div className="actions">
+          <button className="btn-primary" type="button" onClick={props.onReloadArtifacts} disabled={props.reloadPending}>
+            {props.reloadPending ? 'Recargando...' : 'Recargar artefactos de modelo'}
+          </button>
+        </div>
+        <div className="response-box">
+          {JSON.stringify(props.pipelineStatus ?? {}, null, 2)}
+        </div>
+        {props.pipelineError && <div className="response-box error">{props.pipelineError}</div>}
+        {props.reloadResult && <div className="response-box">{JSON.stringify(props.reloadResult, null, 2)}</div>}
+        {props.reloadError && <div className="response-box error">{props.reloadError}</div>}
       </article>
     </section>
   );

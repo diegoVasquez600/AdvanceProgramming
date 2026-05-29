@@ -48,6 +48,12 @@ Assert-True ($infoJson.default_model -ne $null) "default_model is missing"
 $schema = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/schema/input"
 Assert-True ($schema.StatusCode -eq 200) "GET /api/v1/schema/input failed"
 
+$pipelineStatus = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/pipeline/status"
+Assert-True ($pipelineStatus.StatusCode -eq 200) "GET /api/v1/pipeline/status failed"
+
+$pipelineReload = Invoke-WebRequest -UseBasicParsing -Method Post "$BaseUrl$ApiPrefix/pipeline/reload-artifacts"
+Assert-True ($pipelineReload.StatusCode -eq 200) "POST /api/v1/pipeline/reload-artifacts failed"
+
 $docs = Invoke-WebRequest -UseBasicParsing "$BaseUrl/docs"
 Assert-True ($docs.StatusCode -eq 200) "GET /docs failed"
 
