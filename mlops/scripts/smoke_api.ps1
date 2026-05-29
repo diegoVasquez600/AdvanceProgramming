@@ -15,6 +15,16 @@ function Assert-True {
     }
 }
 
+function Get-StatusCodeFromException {
+    param([System.Exception]$Exception)
+
+    if ($Exception.Response -and $Exception.Response.StatusCode) {
+        return [int]$Exception.Response.StatusCode
+    }
+
+    return -1
+}
+
 Write-Host "Smoke test against $BaseUrl"
 
 $health = Invoke-WebRequest -UseBasicParsing "$BaseUrl/health"
@@ -42,11 +52,23 @@ $predictSvm = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "appl
 Assert-True ($predictSvm.StatusCode -eq 200) "POST /predict svm_rbf failed"
 
 $proxyRejectBody = @{ model_name = "random_forest"; features = @{ cultivo = "Cafe" } } | ConvertTo-Json -Depth 6
-$proxyReject = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -Method Post -ContentType "application/json" -Body $proxyRejectBody "$BaseUrl/predict"
-Assert-True ($proxyReject.StatusCode -eq 400) "Proxy-column rejection did not return 400"
+$proxyStatus = -1
+try {
+    $proxyReject = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $proxyRejectBody "$BaseUrl/predict"
+    $proxyStatus = [int]$proxyReject.StatusCode
+} catch {
+    $proxyStatus = Get-StatusCodeFromException -Exception $_.Exception
+}
+Assert-True ($proxyStatus -eq 400) "Proxy-column rejection did not return 400"
 
 $unknownRejectBody = @{ model_name = "random_forest"; features = @{ foo_bar = 123 } } | ConvertTo-Json -Depth 6
-$unknownReject = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -Method Post -ContentType "application/json" -Body $unknownRejectBody "$BaseUrl/predict"
-Assert-True ($unknownReject.StatusCode -eq 400) "Unknown-feature rejection did not return 400"
+$unknownStatus = -1
+try {
+    $unknownReject = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $unknownRejectBody "$BaseUrl/predict"
+    $unknownStatus = [int]$unknownReject.StatusCode
+} catch {
+    $unknownStatus = Get-StatusCodeFromException -Exception $_.Exception
+}
+Assert-True ($unknownStatus -eq 400) "Unknown-feature rejection did not return 400"
 
 Write-Host "Smoke test OK"

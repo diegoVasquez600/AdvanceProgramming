@@ -180,6 +180,12 @@ docker compose up -d api
 powershell -ExecutionPolicy Bypass -File .\mlops\scripts\smoke_api.ps1
 ```
 
+En Linux/macOS/Git Bash puedes usar:
+
+```bash
+bash ./mlops/scripts/smoke_api.sh
+```
+
 5. Detener servicios:
 
 ```powershell
