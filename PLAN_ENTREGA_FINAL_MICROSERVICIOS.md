@@ -15,13 +15,14 @@ Definir, antes de mover archivos o tocar arquitectura, una ruta clara para:
 
 Con base en el estado actual del proyecto:
 1. Modelo principal recomendado: RandomForest (mejor desempeno proxy-safe).
-2. Modelo secundario (baseline interpretable): LogisticRegression.
-3. No usar KNN como modelo principal para despliegue productivo.
+2. Modelo secundario recomendado: LogisticRegression como comparador simple, rapido y tambien proxy-safe.
+3. No usar modelos cuya aparente mejora dependa de variables proxy.
+4. No usar KNN como modelo principal para despliegue productivo.
 
 Estrategia recomendada:
 1. Publicar RandomForest como modelo activo.
-2. Mantener LogisticRegression en MLflow como modelo de respaldo/comparacion.
-3. Registrar ambos modelos y sus metricas para trazabilidad en la demo.
+2. Mantener LogisticRegression en MLflow como modelo de comparacion y trazabilidad.
+3. Registrar ambos modelos y sus metricas, pero decidir el ganador por desempeno real en datos proxy-safe.
 
 ## 3) Estructura objetivo del repositorio (propuesta)
 
@@ -107,7 +108,7 @@ Persistencia minima requerida:
 
 3. Entrenamiento:
 - Entrenar RandomForest y LogisticRegression.
-- Guardar metricas y matriz de confusion.
+- Guardar metricas, matriz de confusion y evidencia de que ambos modelos usan el mismo conjunto proxy-safe.
 
 4. Registro:
 - Registrar modelos y metricas en MLflow.
@@ -117,6 +118,7 @@ Persistencia minima requerida:
 - API consume modelo registrado y responde predicciones.
 - La inferencia debe permitir seleccionar explicitamente entre `RandomForest` y `LogisticRegression`.
 - Ambos modelos deben ser versiones proxy-safe (entrenados sin variables proxy).
+- La seleccion de modelo debe responder a comparacion de generalizacion, no a capacidad de replicar respuestas de proxies.
 - La API debe rechazar payloads que incluyan columnas proxy.
 
 6. Persistencia:

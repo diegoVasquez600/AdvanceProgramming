@@ -53,7 +53,7 @@ assert_contains "${health}" '"status":"ok"' "GET /health should return status ok
 
 models="$(request GET /models "" 200)"
 assert_contains "${models}" '"random_forest"' "GET /models should include random_forest"
-assert_contains "${models}" '"svm_rbf"' "GET /models should include svm_rbf"
+assert_contains "${models}" '"logistic_regression"' "GET /models should include logistic_regression"
 
 info="$(request GET /model/info "" 200)"
 assert_contains "${info}" '"default_model"' "GET /model/info should include default_model"
@@ -62,9 +62,9 @@ predict_rf='{"model_name":"random_forest","features":{}}'
 predict_rf_resp="$(request POST /predict "${predict_rf}" 200)"
 assert_contains "${predict_rf_resp}" '"model_name":"random_forest"' "POST /predict random_forest should return model_name"
 
-predict_svm='{"model_name":"svm_rbf","features":{}}'
-predict_svm_resp="$(request POST /predict "${predict_svm}" 200)"
-assert_contains "${predict_svm_resp}" '"model_name":"svm_rbf"' "POST /predict svm_rbf should return model_name"
+predict_logreg='{"model_name":"logistic_regression","features":{}}'
+predict_logreg_resp="$(request POST /predict "${predict_logreg}" 200)"
+assert_contains "${predict_logreg_resp}" '"model_name":"logistic_regression"' "POST /predict logistic_regression should return model_name"
 
 proxy_reject='{"model_name":"random_forest","features":{"cultivo":"Cafe"}}'
 proxy_reject_resp="$(request POST /predict "${proxy_reject}" 400)"

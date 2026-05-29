@@ -12,7 +12,7 @@ FastAPI service to run inference with selectable model.
 
 ## Behavior
 
-- Supports model selection: `random_forest` or `svm_rbf`
+- Supports model selection: `random_forest` or `logistic_regression`
 - Rejects proxy columns in payload with HTTP 400
 - Rejects unknown feature names with HTTP 400
 

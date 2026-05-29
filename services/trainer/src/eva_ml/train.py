@@ -2,10 +2,11 @@ import json
 import os
 from pathlib import Path
 
+import mlflow
+import mlflow.sklearn
 import joblib
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.decomposition import TruncatedSVD
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -13,7 +14,6 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.svm import SVC
 
 from .config import PROXY_COLUMNS, TARGET_COLUMN, find_project_root
 from .data import load_and_clean
@@ -57,7 +57,16 @@ def main() -> None:
     project_root = find_project_root(Path(__file__).resolve())
     csv_path = project_root / "data" / "Evaluaciones_Agropecuarias_Municipales_EVA.csv"
     artifacts_dir = project_root / "artifacts" / "models"
+    mlruns_dir = project_root / "mlruns"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
+    mlruns_dir.mkdir(parents=True, exist_ok=True)
+
+    tracking_uri = os.getenv(
+        "EVA_MLFLOW_TRACKING_URI", f"file://{mlruns_dir.as_posix()}"
+    )
+    experiment_name = os.getenv("EVA_MLFLOW_EXPERIMENT_NAME", "eva_proxy_safe")
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment_name)
 
     df = load_and_clean(csv_path)
 
@@ -83,6 +92,14 @@ def main() -> None:
     num_cols = X.select_dtypes(include=["number"]).columns.tolist()
     cat_cols = X.select_dtypes(include=["object", "string"]).columns.tolist()
 
+    schema = {
+        "target_column": TARGET_COLUMN,
+        "allowed_features": list(X.columns),
+        "blocked_proxy_columns": drop_proxy,
+        "model_options": ["random_forest", "logistic_regression"],
+        "default_model": "random_forest",
+    }
+
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
@@ -104,14 +121,18 @@ def main() -> None:
                 ),
             ]
         ),
-        "svm_rbf": Pipeline(
+        "logistic_regression": Pipeline(
             [
                 ("preprocessor", pre),
-                ("svd", TruncatedSVD(n_components=40, random_state=42)),
-                ("scaler_dense", StandardScaler()),
                 (
                     "model",
-                    SVC(kernel="rbf", C=3.0, gamma="scale", class_weight="balanced"),
+                    LogisticRegression(
+                        max_iter=1500,
+                        solver="saga",
+                        n_jobs=-1,
+                        class_weight="balanced",
+                        multi_class="auto",
+                    ),
                 ),
             ]
         ),
@@ -119,19 +140,31 @@ def main() -> None:
 
     metrics = {}
 
-    for name, pipe in models.items():
-        pipe.fit(X_train, y_train)
-        pred = pipe.predict(X_test)
-        metrics[name] = evaluate(y_test, pred)
-        joblib.dump(pipe, artifacts_dir / f"{name}.joblib")
+    with mlflow.start_run(run_name="training_summary"):
+        mlflow.log_param("target_column", TARGET_COLUMN)
+        mlflow.log_param("rows_used", len(df))
+        mlflow.log_param("train_rows", len(X_train))
+        mlflow.log_param("test_rows", len(X_test))
+        mlflow.log_param("blocked_proxy_columns_count", len(drop_proxy))
+        mlflow.log_dict(schema, "schema.json")
 
-    schema = {
-        "target_column": TARGET_COLUMN,
-        "allowed_features": list(X.columns),
-        "blocked_proxy_columns": drop_proxy,
-        "model_options": list(models.keys()),
-        "default_model": "random_forest",
-    }
+        for name, pipe in models.items():
+            with mlflow.start_run(run_name=name, nested=True):
+                pipe.fit(X_train, y_train)
+                pred = pipe.predict(X_test)
+                metrics[name] = evaluate(y_test, pred)
+
+                joblib_path = artifacts_dir / f"{name}.joblib"
+                joblib.dump(pipe, joblib_path)
+
+                mlflow.log_param("model_name", name)
+                mlflow.log_param("target_column", TARGET_COLUMN)
+                for metric_name, metric_value in metrics[name].items():
+                    mlflow.log_metric(metric_name, metric_value)
+
+                mlflow.log_dict(metrics[name], f"metrics_{name}.json")
+                mlflow.log_artifact(str(joblib_path), artifact_path="models")
+                mlflow.sklearn.log_model(pipe, artifact_path="sklearn-model")
 
     (artifacts_dir / "schema.json").write_text(
         json.dumps(schema, indent=2), encoding="utf-8"
@@ -147,9 +180,17 @@ def main() -> None:
         .rename(columns={"index": "model"})
     )
     metrics_df.to_csv(artifacts_dir / "metrics.csv", index=False)
+    with mlflow.start_run(run_name="artifacts_summary"):
+        mlflow.log_artifact(str(artifacts_dir / "metrics.csv"), artifact_path="reports")
+        mlflow.log_artifact(str(artifacts_dir / "schema.json"), artifact_path="reports")
+        mlflow.log_artifact(
+            str(artifacts_dir / "metrics.json"), artifact_path="reports"
+        )
 
     print("Training complete. Artifacts generated at:")
     print(artifacts_dir)
+    print(f"MLflow tracking URI: {tracking_uri}")
+    print(f"MLflow experiment: {experiment_name}")
     print(f"Rows used for training: {len(df):,}")
     print(metrics_df)
 

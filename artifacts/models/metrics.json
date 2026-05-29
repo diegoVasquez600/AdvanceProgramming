@@ -5,10 +5,10 @@
     "recall_macro": 0.9280689267050425,
     "f1_macro": 0.9205676737036245
   },
-  "svm_rbf": {
-    "accuracy": 0.94375,
-    "precision_macro": 0.8493509264956128,
-    "recall_macro": 0.9369635908097447,
-    "f1_macro": 0.8757866297650819
+  "logistic_regression": {
+    "accuracy": 0.9479166666666666,
+    "precision_macro": 0.8567819372167199,
+    "recall_macro": 0.9453062529985607,
+    "f1_macro": 0.8842190219854871
   }
 }

@@ -22,7 +22,7 @@
   ],
   "model_options": [
     "random_forest",
-    "svm_rbf"
+    "logistic_regression"
   ],
   "default_model": "random_forest"
 }

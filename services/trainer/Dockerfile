@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools==70.0.0
 
 COPY services/trainer/requirements.txt /tmp/requirements-trainer.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-trainer.txt
