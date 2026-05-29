@@ -76,7 +76,7 @@ Assert-True ($registry.StatusCode -eq 200) "GET /api/v1/models/registry failed"
 $registryPaged = Invoke-WebRequest -UseBasicParsing "$BaseUrl$ApiPrefix/models/registry?limit=5&offset=0"
 Assert-True ($registryPaged.StatusCode -eq 200) "GET /api/v1/models/registry paged failed"
 
-$feedbackBody = @{ true_label = "demo_label"; source = "smoke"; notes = "automated check" } | ConvertTo-Json -Depth 6
+$feedbackBody = @{ true_label = "$($predictRfJson.prediction)"; source = "smoke"; notes = "automated check" } | ConvertTo-Json -Depth 6
 $feedback = Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $feedbackBody "$BaseUrl$ApiPrefix/predictions/$($predictRfJson.prediction_id)/feedback"
 Assert-True ($feedback.StatusCode -eq 200) "POST /api/v1/predictions/{id}/feedback failed"
 

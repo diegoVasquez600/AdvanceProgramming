@@ -78,8 +78,13 @@ predict_rf='{"model_name":"random_forest","features":{}}'
 predict_rf_resp="$(request POST "${API_PREFIX}/predict" "${predict_rf}" 200)"
 assert_contains "${predict_rf_resp}" '"model_name":"random_forest"' "POST /predict random_forest should return model_name"
 prediction_id="$(echo "${predict_rf_resp}" | sed -n 's/.*"prediction_id":\([0-9][0-9]*\).*/\1/p')"
+predicted_label="$(echo "${predict_rf_resp}" | sed -n 's/.*"prediction":"\([^"]*\)".*/\1/p')"
 if [[ -z "${prediction_id}" ]]; then
   echo "Assertion failed: POST /predict did not return prediction_id"
+  exit 1
+fi
+if [[ -z "${predicted_label}" ]]; then
+  echo "Assertion failed: POST /predict did not return prediction label"
   exit 1
 fi
 
@@ -93,7 +98,7 @@ assert_contains "${registry_resp}" '"items"' "GET /models/registry should return
 registry_paged_resp="$(request GET "${API_PREFIX}/models/registry?limit=5&offset=0" "" 200)"
 assert_contains "${registry_paged_resp}" '"items"' "GET /models/registry paged should return items"
 
-feedback_body='{"true_label":"demo_label","source":"smoke","notes":"automated check"}'
+feedback_body="{\"true_label\":\"${predicted_label}\",\"source\":\"smoke\",\"notes\":\"automated check\"}"
 feedback_resp="$(request POST "${API_PREFIX}/predictions/${prediction_id}/feedback" "${feedback_body}" 200)"
 assert_contains "${feedback_resp}" '"status":"ok"' "POST /predictions/{id}/feedback should return ok"
 

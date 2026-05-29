@@ -631,8 +631,20 @@ def get_feedback_metrics() -> FeedbackMetricsResponse:
                     p.model_name,
                     p.model_version,
                     COUNT(*) AS labeled_count,
-                    SUM(CASE WHEN p.prediction = f.true_label THEN 1 ELSE 0 END) AS exact_match_count,
-                    AVG(CASE WHEN p.prediction = f.true_label THEN 1.0 ELSE 0.0 END) AS observed_accuracy
+                    SUM(
+                        CASE
+                            WHEN LOWER(TRIM(p.prediction)) = LOWER(TRIM(f.true_label))
+                            THEN 1
+                            ELSE 0
+                        END
+                    ) AS exact_match_count,
+                    AVG(
+                        CASE
+                            WHEN LOWER(TRIM(p.prediction)) = LOWER(TRIM(f.true_label))
+                            THEN 1.0
+                            ELSE 0.0
+                        END
+                    ) AS observed_accuracy
                 FROM prediction_feedback f
                 INNER JOIN predictions p ON p.id = f.prediction_id
                 GROUP BY p.model_name, p.model_version

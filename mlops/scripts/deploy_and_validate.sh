@@ -104,14 +104,20 @@ fi
 
 pred_json="$(request_expect_status POST "${BASE_URL}/api/v1/predict" '{"model_name":"random_forest","features":{}}' 200)"
 prediction_id="$(printf '%s' "${pred_json}" | sed -n 's/.*"prediction_id":\([0-9][0-9]*\).*/\1/p')"
+predicted_label="$(printf '%s' "${pred_json}" | sed -n 's/.*"prediction":"\([^"]*\)".*/\1/p')"
 if [[ -z "${prediction_id}" ]]; then
   echo "ERROR: could not parse prediction_id from /predict response"
   echo "Response: ${pred_json}"
   exit 1
 fi
+if [[ -z "${predicted_label}" ]]; then
+  echo "ERROR: could not parse prediction label from /predict response"
+  echo "Response: ${pred_json}"
+  exit 1
+fi
 
 echo "Created prediction_id=${prediction_id}"
-feedback_body='{"true_label":"demo_label","source":"deploy-script","notes":"auto validation"}'
+feedback_body="{\"true_label\":\"${predicted_label}\",\"source\":\"deploy-script\",\"notes\":\"auto validation\"}"
 request_expect_status POST "${BASE_URL}/api/v1/predictions/${prediction_id}/feedback" "${feedback_body}" 200 >/dev/null
 
 metrics_json="$(request_expect_status GET "${BASE_URL}/api/v1/predictions/feedback/metrics" "" 200)"

@@ -1,18 +1,18 @@
 {
   "api_version": "v1",
-  "training_timestamp": "2026-05-29T19:13:17.286584+00:00",
+  "training_timestamp": "2026-05-29T19:38:10.097362+00:00",
   "experiment_name": "eva_proxy_safe",
   "tracking_uri": "http://mlflow:5000",
   "default_model": "random_forest",
   "models": {
     "random_forest": {
-      "version": "2026-05-29T19:13:17.286584+00:00",
-      "trained_at": "2026-05-29T19:13:17.286584+00:00",
+      "version": "2026-05-29T19:38:10.097362+00:00",
+      "trained_at": "2026-05-29T19:38:10.097362+00:00",
       "artifact": "random_forest.joblib"
     },
     "logistic_regression": {
-      "version": "2026-05-29T19:13:17.286584+00:00",
-      "trained_at": "2026-05-29T19:13:17.286584+00:00",
+      "version": "2026-05-29T19:38:10.097362+00:00",
+      "trained_at": "2026-05-29T19:38:10.097362+00:00",
       "artifact": "logistic_regression.joblib"
     }
   }

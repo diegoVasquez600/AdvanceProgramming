@@ -181,6 +181,26 @@ body {
   color: rgba(244, 251, 250, 0.85);
 }
 
+.compact-card {
+  align-self: start;
+}
+
+.mini-metric-row {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.mini-metric-row span {
+  border-radius: 999px;
+  padding: 0.22rem 0.52rem;
+  background: rgba(245, 251, 250, 0.2);
+  border: 1px solid rgba(244, 251, 250, 0.35);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .story-list {
   margin: 0 0 0.8rem;
   padding-left: 1.2rem;
@@ -245,6 +265,31 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.insight-card {
+  border: 1px solid rgba(28, 84, 94, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.72rem;
+}
+
+.insight-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.insight-card p {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  color: #2f4f54;
+  line-height: 1.4;
 }
 
 .timeline-item {
@@ -338,6 +383,78 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
+}
+
+.md-tabs {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.md-shell {
+  margin-top: 0.8rem;
+  border: 1px solid rgba(28, 83, 92, 0.22);
+  border-radius: 12px;
+  background: rgba(250, 254, 252, 0.92);
+  overflow: hidden;
+}
+
+.md-header {
+  border-bottom: 1px solid rgba(28, 83, 92, 0.16);
+  padding: 0.6rem 0.75rem;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.md-header strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.md-header span {
+  color: var(--muted);
+  font-size: 0.79rem;
+}
+
+.markdown-viewer {
+  padding: 0.82rem;
+  max-height: 360px;
+  overflow: auto;
+  line-height: 1.45;
+}
+
+.markdown-viewer h1,
+.markdown-viewer h2,
+.markdown-viewer h3 {
+  margin: 0.75rem 0 0.4rem;
+}
+
+.markdown-viewer h1 {
+  font-size: 1rem;
+}
+
+.markdown-viewer h2 {
+  font-size: 0.93rem;
+}
+
+.markdown-viewer p,
+.markdown-viewer li {
+  font-size: 0.83rem;
+  color: #1f3c41;
+}
+
+.markdown-viewer pre {
+  margin: 0.55rem 0;
+  padding: 0.55rem;
+  border-radius: 8px;
+  background: #edf3ef;
+  overflow: auto;
+}
+
+.markdown-viewer code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.77rem;
 }
 
 .doc-card {
@@ -687,6 +804,7 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
+  .insight-grid,
   .timeline-list,
   .diagram-grid,
   .doc-grid {

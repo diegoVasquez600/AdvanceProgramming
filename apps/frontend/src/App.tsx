@@ -19,6 +19,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { marked } from 'marked';
 
 import { api } from './api';
 import { EVA_COLUMNS } from './evaColumns';
@@ -56,7 +57,8 @@ type DaneLocation = {
   grupo_de_cultivo: string;
 };
 
-type PresentationTab = 'pitch' | 'arquitectura' | 'repositorio' | 'documentacion';
+type PresentationTab = 'contexto' | 'arquitectura' | 'repositorio' | 'documentacion';
+type MarkdownDocKey = 'architecture' | 'runbook';
 
 const formSchema = z.object({
   model_name: z.string().min(1, 'Select a model'),
@@ -278,36 +280,31 @@ const DEMO_PRESETS: Preset[] = [
   },
 ];
 
-const PRESENTATION_PITCH = [
+const PROXY_INSIGHTS = [
   {
-    minute: '00-02',
-    title: 'Contexto y objetivo',
-    message: 'Que problema resuelve EVA y por que se modela ciclo de cultivo con variables proxy bloqueadas.',
-    evidence: 'Muestra tarjeta de variables restringidas y diccionario EVA.',
+    title: 'Problema detectado',
+    content:
+      'El modelo aprendia atajos por columnas con informacion casi directa del objetivo (cultivo, subgrupo, nombre cientifico).',
   },
   {
-    minute: '02-05',
-    title: 'Arquitectura y despliegue',
-    message: 'Explica microservicios en Docker Compose y trazabilidad end-to-end.',
-    evidence: 'Usa diagrama de arquitectura y flujo Dataset -> API -> Feedback.',
+    title: 'Como se identifico',
+    content:
+      'Se cruzo analisis de negocio + importancia de variables + revision semantica frente al target ciclo_de_cultivo.',
   },
   {
-    minute: '05-08',
-    title: 'Entrenamiento y modelo ganador',
-    message: 'Describe comparativa RF vs Logistic Regression y criterio por F1 macro.',
-    evidence: 'Grafico de barras + tarjeta de modelo recomendado.',
+    title: 'Decision aplicada',
+    content:
+      'Se bloquearon las variables proxy en entrenamiento y en payload de inferencia para evitar leakage y sobreajuste.',
   },
   {
-    minute: '08-12',
-    title: 'Demo operativa',
-    message: 'Ejecuta prediccion con presets EVA, luego valida historial y feedback.',
-    evidence: 'Navega a Prediccion y luego Servicios/API para gobernanza.',
+    title: 'Impacto en modelos usados',
+    content:
+      'Sin proxies, Random Forest y Logistic Regression mantienen rendimiento estable y resultados consistentes en escenarios nuevos.',
   },
   {
-    minute: '12-15',
-    title: 'Gobernanza y cierre',
-    message: 'Cierra con metricas observadas, export CSV y estado de servicios.',
-    evidence: 'Abre endpoints de metrics/export y deja evidencias de reproducibilidad.',
+    title: 'Por que monitorear feedback',
+    content:
+      'El feedback real permite medir accuracy observada en produccion y detectar rapidamente drift o degradacion del modelo.',
   },
 ];
 
@@ -330,13 +327,13 @@ const REPO_STRUCTURE_LINES = [
 const ARCHITECTURE_DIAGRAMS = [
   {
     title: 'Arquitectura de Base de Datos',
-    src: 'http://localhost:8000/static/diagrams/db-governance-schema.svg',
+    src: 'http://localhost:8000/static-docs/diagrams/db-governance-schema.svg',
     description:
       'Relaciona predicciones, registro de modelos y feedback para trazabilidad y evaluacion observada.',
   },
   {
     title: 'Diagrama de Clases API',
-    src: 'http://localhost:8000/static/diagrams/api-class-governance-diagram.svg',
+    src: 'http://localhost:8000/static-docs/diagrams/api-class-governance-diagram.svg',
     description:
       'Expone contratos, schemas y endpoints versionados usados por frontend, docs y scripts operativos.',
   },
@@ -344,21 +341,87 @@ const ARCHITECTURE_DIAGRAMS = [
 
 const DOCUMENTATION_LINKS = [
   {
-    title: 'Runbook de operacion',
-    href: 'http://localhost:8000/redoc',
-    description: 'Secuencia de despliegue, endpoints y evidencia tecnica para clase.',
-  },
-  {
     title: 'Swagger API v1',
     href: 'http://localhost:8000/docs',
-    description: 'Contrato ejecutable para demostrar request/response en vivo.',
+    description: 'Contrato ejecutable para request/response en vivo.',
+  },
+  {
+    title: 'ReDoc API',
+    href: 'http://localhost:8000/redoc',
+    description: 'Documentacion enriquecida con diagramas y narrativa tecnica.',
   },
   {
     title: 'MLflow Tracking',
     href: 'http://localhost:5000',
-    description: 'Corridas, metricas y artefactos de entrenamiento con trazabilidad temporal.',
+    description: 'Corridas, metricas y artefactos con trazabilidad temporal.',
   },
 ];
+
+const MARKDOWN_DOCS: Record<MarkdownDocKey, { title: string; subtitle: string; content: string }> = {
+  architecture: {
+    title: 'architecture.md',
+    subtitle: 'Vista de arquitectura y flujo end-to-end',
+    content: `# Arquitectura - EVA Agro Analytics
+
+## Resumen
+Plataforma de ML en microservicios para inferencia y trazabilidad sobre EVA.
+
+Servicios principales:
+1. db (PostgreSQL) para predicciones y backend de MLflow.
+2. object-store (MinIO) para artefactos.
+3. mlflow para experiment tracking.
+4. trainer para entrenamiento one-shot.
+5. api (FastAPI) con /api/v1.
+6. frontend (React + Nginx).
+
+## Flujo
+1. trainer entrena random_forest y logistic_regression.
+2. Exporta schema, metrics y metadata a artifacts/models.
+3. api carga artefactos y expone inferencia + governance.
+4. frontend consume API y muestra trazabilidad.
+
+## Governance
+- model_registry: catalogo de modelos desplegados.
+- prediction_requests: metadata operacional por request.
+- prediction_feedback: etiquetas reales para accuracy observada.
+`,
+  },
+  runbook: {
+    title: 'runbook.md',
+    subtitle: 'Operacion, despliegue y verificacion',
+    content: `# Runbook Operativo - EVA Agro Analytics
+
+## Arranque
+\`\`\`bash
+docker compose up -d --build
+\`\`\`
+
+## Despliegue recomendado
+\`\`\`bash
+bash ./mlops/scripts/deploy_and_validate.sh
+\`\`\`
+
+## Verificaciones clave
+1. docker compose ps
+2. bash ./mlops/scripts/smoke_api.sh
+3. GET /api/v1/pipeline/status
+4. GET /api/v1/predictions/feedback/metrics
+5. GET /api/v1/predictions/feedback/export.csv
+
+## Reentrenamiento
+\`\`\`bash
+docker compose run --rm trainer
+curl -X POST http://localhost:8000/api/v1/pipeline/reload-artifacts
+\`\`\`
+
+## URLs de demo
+- Frontend: http://localhost:3000
+- Swagger: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- MLflow: http://localhost:5000
+`,
+  },
+};
 
 function castFeatureValue(field: FeatureField, value: string): unknown {
   if (value.trim() === '') {
@@ -566,7 +629,6 @@ function AppShell() {
           </div>
           <div className="badge-row">
             <span className="api-chip">{`API /api/v1 - ${healthQuery.data?.status ?? 'loading'}`}</span>
-            <span className="api-chip">{`Modelo base: ${modelsQuery.data?.default_model ?? '-'}`}</span>
           </div>
         </header>
 
@@ -663,8 +725,24 @@ type PresentationPageProps = {
   blockedColumns: string[];
 };
 
+function MarkdownDocumentViewer(props: { docKey: MarkdownDocKey }) {
+  const doc = MARKDOWN_DOCS[props.docKey];
+  const html = useMemo(() => marked.parse(doc.content) as string, [doc.content]);
+
+  return (
+    <div className="md-shell">
+      <div className="md-header">
+        <strong>{doc.title}</strong>
+        <span>{doc.subtitle}</span>
+      </div>
+      <article className="markdown-viewer" dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  );
+}
+
 function PresentationPage(props: PresentationPageProps) {
-  const [activeTab, setActiveTab] = useState<PresentationTab>('pitch');
+  const [activeTab, setActiveTab] = useState<PresentationTab>('contexto');
+  const [activeDoc, setActiveDoc] = useState<MarkdownDocKey>('architecture');
 
   const bestModel = useMemo(() => {
     if (!props.metricsChartData.length) {
@@ -696,16 +774,21 @@ function PresentationPage(props: PresentationPageProps) {
         </ul>
       </article>
 
-      <article className="card col-4 accent-card">
-        <h2>Modelo recomendado</h2>
-        <div className="stat">{bestModel?.model ?? 'calculando'}</div>
-        <div className="stat-label">
-          F1 macro: {bestModel ? bestModel.f1_macro.toFixed(3) : '-'}
-        </div>
-      </article>
-
-      <article className="card col-8">
+      <article className="card col-12">
         <h2>Comparativa de modelos</h2>
+        <div className="model-spotlight">
+          <strong>Modelo recomendado:</strong>
+          <span>{bestModel?.model ?? 'calculando'}</span>
+          <small>
+            Seleccionado por balance entre accuracy, precision, recall y F1 macro.
+          </small>
+          <div className="mini-metric-row">
+            <span>Acc: {bestModel ? bestModel.accuracy.toFixed(3) : '-'}</span>
+            <span>Prec: {bestModel ? bestModel.precision_macro.toFixed(3) : '-'}</span>
+            <span>Recall: {bestModel ? bestModel.recall_macro.toFixed(3) : '-'}</span>
+            <span>F1: {bestModel ? bestModel.f1_macro.toFixed(3) : '-'}</span>
+          </div>
+        </div>
         <div style={{ width: '100%', height: 300 }}>
           <ResponsiveContainer>
             <BarChart data={props.metricsChartData}>
@@ -725,20 +808,19 @@ function PresentationPage(props: PresentationPageProps) {
 
       <article className="card col-12 deck-card">
         <div className="deck-header">
-          <h2>Presentacion Ejecutiva Interactiva</h2>
-          <span className="deck-chip">Modo clase: 15 minutos</span>
+          <h2>Explicacion Tecnica del Sistema EVA</h2>
         </div>
         <p className="stat-label">
-          Esta seccion funciona como una presentacion tipo PowerPoint, pero conectada al sistema real.
+          Esta seccion explica de forma directa que se construyo, por que se tomaron las decisiones de modelado y como se valida en operacion.
         </p>
 
         <div className="deck-tabs">
           <button
             type="button"
-            className={`deck-tab ${activeTab === 'pitch' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pitch')}
+            className={`deck-tab ${activeTab === 'contexto' ? 'active' : ''}`}
+            onClick={() => setActiveTab('contexto')}
           >
-            Guion 15 min
+            Problema y decisiones
           </button>
           <button
             type="button"
@@ -763,26 +845,31 @@ function PresentationPage(props: PresentationPageProps) {
           </button>
         </div>
 
-        {activeTab === 'pitch' && (
+        {activeTab === 'contexto' && (
           <div className="deck-panel fade-in">
-            <div className="timeline-list">
-              {PRESENTATION_PITCH.map((step) => (
-                <article key={step.minute} className="timeline-item">
-                  <div className="timeline-minute">{step.minute}</div>
-                  <h3>{step.title}</h3>
-                  <p>{step.message}</p>
-                  <small>{step.evidence}</small>
+            <p className="context-intro">
+              El objetivo es predecir <strong>ciclo_de_cultivo</strong> sin usar variables que filtren la respuesta.
+              Por eso se bloquearon columnas proxy tanto en entrenamiento como en inferencia para garantizar evaluacion honesta.
+            </p>
+            <div className="insight-grid">
+              {PROXY_INSIGHTS.map((insight) => (
+                <article key={insight.title} className="insight-card">
+                  <h3>{insight.title}</h3>
+                  <p>{insight.content}</p>
                 </article>
               ))}
             </div>
-            <div className="deck-actions">
-              <Link className="btn-link" to="/prediccion">
-                Ir a demo de prediccion
-              </Link>
-              <Link className="btn-link" to="/servicios">
-                Ir a servicios y gobernanza
-              </Link>
+            <div className="proxy-columns-box">
+              <h3>Variables proxy bloqueadas en API</h3>
+              <div className="proxy-pill-row">
+                {props.blockedColumns.map((column) => (
+                  <span key={column} className="api-chip">{column}</span>
+                ))}
+              </div>
             </div>
+            <p className="label-help">
+              Resultado esperado: mejor generalizacion, menor leakage y trazabilidad de calidad con feedback en produccion.
+            </p>
           </div>
         )}
 
@@ -844,9 +931,25 @@ function PresentationPage(props: PresentationPageProps) {
                 </article>
               ))}
             </div>
-            <p className="label-help">
-              Recomendacion para presentar: abrir ReDoc y explicar primero el contrato; luego mostrar MLflow como evidencia de entrenamiento.
-            </p>
+
+            <div className="md-tabs">
+              <button
+                type="button"
+                className={`deck-tab ${activeDoc === 'architecture' ? 'active' : ''}`}
+                onClick={() => setActiveDoc('architecture')}
+              >
+                Ver architecture.md
+              </button>
+              <button
+                type="button"
+                className={`deck-tab ${activeDoc === 'runbook' ? 'active' : ''}`}
+                onClick={() => setActiveDoc('runbook')}
+              >
+                Ver runbook.md
+              </button>
+            </div>
+
+            <MarkdownDocumentViewer docKey={activeDoc} />
           </div>
         )}
       </article>
@@ -1261,10 +1364,12 @@ type ServicesPageProps = {
 
 function ServicesPage(props: ServicesPageProps) {
   const metricChartData = (props.feedbackMetrics?.items ?? []).map((item) => ({
-    model: item.model_name,
+    model: `${item.model_name} (${item.model_version.slice(11, 16)})`,
     accuracy: item.observed_accuracy,
     labeled: item.labeled_count,
   }));
+  const hasMetrics = metricChartData.length > 0;
+  const allZeroAccuracy = hasMetrics && metricChartData.every((row) => row.accuracy === 0);
 
   return (
     <section className="grid fade-in">
@@ -1380,16 +1485,25 @@ function ServicesPage(props: ServicesPageProps) {
 
       <article className="card col-6">
         <h2>Governance: feedback y metricas observadas</h2>
+        {allZeroAccuracy && (
+          <p className="label-help">
+            La accuracy observada esta en 0.00 porque las etiquetas reales cargadas no coinciden con las predicciones registradas.
+          </p>
+        )}
         <div style={{ width: '100%', height: 220 }}>
-          <ResponsiveContainer>
-            <BarChart data={metricChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="model" />
-              <YAxis domain={[0, 1]} />
-              <Tooltip />
-              <Bar dataKey="accuracy" fill="#2ea47f" />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasMetrics ? (
+            <ResponsiveContainer>
+              <BarChart data={metricChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="model" />
+                <YAxis domain={[0, 1]} />
+                <Tooltip />
+                <Bar dataKey="accuracy" fill="#2ea47f" minPointSize={4} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="response-box">Aun no hay feedback etiquetado para calcular metricas observadas.</div>
+          )}
         </div>
         <div className="table-wrap compact">
           <table>
