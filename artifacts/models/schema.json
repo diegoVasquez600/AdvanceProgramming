@@ -1,0 +1,28 @@
+{
+  "target_column": "ciclo_de_cultivo",
+  "allowed_features": [
+    "c_d_dep",
+    "departamento",
+    "c_d_mun",
+    "municipio",
+    "grupo_de_cultivo",
+    "a_o",
+    "periodo",
+    "rea_sembrada_ha",
+    "rea_cosechada_ha",
+    "producci_n_t",
+    "rendimiento_t_ha"
+  ],
+  "blocked_proxy_columns": [
+    "cultivo",
+    "subgrupo_de_cultivo",
+    "nombre_cientifico",
+    "estado_fisico_produccion",
+    "desagregaci_n_regional_y"
+  ],
+  "model_options": [
+    "random_forest",
+    "svm_rbf"
+  ],
+  "default_model": "random_forest"
+}

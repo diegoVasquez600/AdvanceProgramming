@@ -1,0 +1,14 @@
+{
+  "random_forest": {
+    "accuracy": 0.97,
+    "precision_macro": 0.9137154260417937,
+    "recall_macro": 0.9280689267050425,
+    "f1_macro": 0.9205676737036245
+  },
+  "svm_rbf": {
+    "accuracy": 0.94375,
+    "precision_macro": 0.8493509264956128,
+    "recall_macro": 0.9369635908097447,
+    "f1_macro": 0.8757866297650819
+  }
+}

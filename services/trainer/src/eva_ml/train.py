@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import joblib
@@ -59,6 +60,16 @@ def main() -> None:
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_and_clean(csv_path)
+
+    # Keeps training feasible for local/dev runs while preserving class ratios.
+    max_rows = int(os.getenv("EVA_MAX_ROWS", "12000"))
+    if len(df) > max_rows:
+        frac = max_rows / len(df)
+        df = (
+            df.groupby(TARGET_COLUMN, group_keys=False)
+            .sample(frac=frac, random_state=42)
+            .reset_index(drop=True)
+        )
 
     drop_proxy = [c for c in PROXY_COLUMNS if c in df.columns]
     model_df = df.drop(columns=drop_proxy, errors="ignore").copy()
@@ -139,6 +150,7 @@ def main() -> None:
 
     print("Training complete. Artifacts generated at:")
     print(artifacts_dir)
+    print(f"Rows used for training: {len(df):,}")
     print(metrics_df)
 
 
